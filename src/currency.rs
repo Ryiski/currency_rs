@@ -11,14 +11,31 @@ pub enum CurrencyErr {
 
 #[derive(Debug, Clone)]
 pub struct Currency {
-    pub value: f64,
-    pub int_value: f64,
-    increment: f64,
+    value: f64,
+    int_value: f64,
     regex: Regex,
     opts: CurrencyOpts,
 }
 
 impl Currency {
+    /// It returns the value of the currency.
+    ///
+    /// Returns:
+    ///
+    /// f64 value.
+    pub fn value(&self) -> f64 {
+        self.value
+    }
+
+    /// It returns the int_value of the currency.
+    ///
+    /// Returns:
+    ///
+    /// f64 int_value.
+    pub fn int_value(&self) -> f64 {
+        self.int_value
+    }
+
     /// It creates a new currency object from a f64.
     ///
     /// Arguments:
@@ -32,11 +49,11 @@ impl Currency {
     pub fn new_float(value: f64, opts: Option<CurrencyOpts>) -> Self {
         let currency_options = match opts {
             Some(options) => options,
-            None => CurrencyOpts::default(),
+            None => CurrencyOpts::new(),
         };
         let v = Self::parse(value, currency_options.clone(), true);
 
-        Self::new(v, currency_options.clone())
+        Self::new(v, currency_options)
     }
 
     /// It creates a new currency object from a string.
@@ -49,7 +66,7 @@ impl Currency {
     /// Returns:
     ///
     /// A new instance of the Currency struct.
-    pub fn new_string(value: String, opts: Option<CurrencyOpts>) -> Result<Self, CurrencyErr> {
+    pub fn new_string(value: &str, opts: Option<CurrencyOpts>) -> Result<Self, CurrencyErr> {
         let currency_options = match opts {
             Some(options) => options,
             None => CurrencyOpts::default(),
@@ -90,18 +107,12 @@ impl Currency {
     ///
     /// A new instance of the Currency struct.
     fn new(v: f64, opts: CurrencyOpts) -> Self {
-        let precision = Self::pow(opts.precision);
+        let precision = Self::pow(opts.precision());
 
         let int_value = v;
         let value = int_value / precision;
 
-        let increment = if let Some(increment) = opts.increment {
-            increment
-        } else {
-            1. / precision
-        };
-
-        let regex = if opts.use_vedic {
+        let regex = if opts.use_vedic() {
             Regex::new(VEDIC_REGEX).unwrap()
         } else {
             Regex::new(GROUP_REGEX).unwrap()
@@ -110,7 +121,6 @@ impl Currency {
         Self {
             value,
             int_value,
-            increment,
             regex,
             opts,
         }
@@ -130,9 +140,9 @@ impl Currency {
     fn parse(value: f64, opts: CurrencyOpts, use_rounding: bool) -> f64 {
         let mut v: f64 = value;
 
-        let from_cents = opts.from_cents;
+        let from_cents = opts.from_cents();
 
-        let precision = Self::pow(opts.precision);
+        let precision = Self::pow(opts.precision());
 
         if !from_cents {
             v *= precision; // scale number to integer value
@@ -151,14 +161,14 @@ impl Currency {
     /// * `opts`: CurrencyOpts
     /// * `use_rounding`: If true, the value will be rounded to the nearest integer.
     fn parse_string(
-        value: String,
+        value: &str,
         opts: CurrencyOpts,
         use_rounding: bool,
     ) -> Result<f64, CurrencyErr> {
-        let decimal = &opts.decimal;
+        let decimal = &opts.decimal();
 
-        let from_cents = &opts.from_cents;
-        let precision = Self::pow(opts.precision);
+        let from_cents = &opts.from_cents();
+        let precision = Self::pow(opts.precision());
 
         let regex = Regex::new(&format!(r"[^-\d{}]", decimal)).unwrap();
         let regex_allow_negative = Regex::new(&format!(r"\((.*)\)")).unwrap();
@@ -182,7 +192,7 @@ impl Currency {
                 }
             }
             Err(err) => {
-                if opts.error_on_invalid {
+                if opts.error_on_invalid() {
                     return Err(CurrencyErr::ParseStringErr(err.to_string()));
                 }
 
@@ -232,16 +242,16 @@ impl Currency {
     }
 
     pub fn format(&self) -> String {
-        let precision = self.opts.precision;
-        let increment = self.increment;
+        let precision = self.opts.precision();
+        let increment = self.opts.increment();
         let rounded_value = Self::rounding(self.value, increment);
         let currency: String = Self::round_dp_to_string(rounded_value, precision as usize);
 
-        let pos_pattern = &self.opts.pattern;
-        let negative_pattern = &self.opts.negative_pattern;
-        let symbol = &self.opts.symbol;
-        let separator = &self.opts.separator;
-        let decimal = &self.opts.decimal;
+        let pos_pattern = self.opts.pattern();
+        let negative_pattern = self.opts.negative_pattern();
+        let symbol = self.opts.symbol();
+        let separator = self.opts.separator();
+        let decimal = self.opts.decimal();
         let split = Regex::new(r"^-").unwrap().replace(&currency, "");
         let split_collection: Vec<&str> = split.split('.').collect();
 
@@ -249,7 +259,7 @@ impl Currency {
             .regex
             .replace_all(
                 split_collection.first().unwrap(),
-                "$1".to_owned() + separator.as_str(),
+                "$1".to_owned() + separator,
             )
             .to_string();
 
@@ -260,7 +270,7 @@ impl Currency {
         };
 
         let cents = if precision > 0. {
-            decimal.clone() + &_cents.to_string()
+            decimal.to_owned() + &_cents.to_string()
         } else {
             "".to_string()
         };
@@ -284,8 +294,9 @@ impl Currency {
     ///
     /// A string
     pub fn to_string(&self) -> String {
-        let precision = self.opts.precision;
-        let increment = self.increment;
+        let precision = self.opts.precision();
+        let increment = self.opts.increment();
+
         let rounded_value = Self::rounding(self.value, increment);
         let currency: String = Self::round_dp_to_string(rounded_value, precision as usize);
         return currency;
@@ -297,7 +308,7 @@ impl Currency {
     ///
     /// The cents of the value.
     pub fn cents(&self) -> i64 {
-        return (self.int_value % Self::pow(self.opts.precision)) as i64;
+        return (self.int_value % Self::pow(self.opts.precision())) as i64;
     }
 
     /// It returns the value of the dollar.
@@ -326,10 +337,10 @@ impl Currency {
     pub fn add(&self, number: f64) -> Self {
         let mut int_value = self.int_value;
 
-        let p = if self.opts.from_cents {
+        let p = if self.opts.from_cents() {
             1.
         } else {
-            Self::pow(self.opts.precision)
+            Self::pow(self.opts.precision())
         };
 
         int_value += Self::parse(number, self.opts.clone(), true);
@@ -347,13 +358,13 @@ impl Currency {
     /// Returns:
     ///
     /// A new instance of the Money struct.
-    pub fn add_string(&self, number: String) -> Result<Self, CurrencyErr> {
+    pub fn add_string(&self, number: &str) -> Result<Self, CurrencyErr> {
         let mut int_value = self.int_value;
 
-        let p = if self.opts.from_cents {
+        let p = if self.opts.from_cents() {
             1.
         } else {
-            Self::pow(self.opts.precision)
+            Self::pow(self.opts.precision())
         };
 
         int_value += Self::parse_string(number, self.opts.clone(), true)?;
@@ -373,10 +384,10 @@ impl Currency {
     pub fn subtract(&self, number: f64) -> Self {
         let mut int_value = self.int_value;
 
-        let p = if self.opts.from_cents {
+        let p = if self.opts.from_cents() {
             1.
         } else {
-            Self::pow(self.opts.precision)
+            Self::pow(self.opts.precision())
         };
 
         int_value -= Self::parse(number, self.opts.clone(), true);
@@ -395,10 +406,10 @@ impl Currency {
     /// A new instance of the Money struct.
     pub fn multiply(&self, number: f64) -> Self {
         let mut int_value = self.int_value;
-        let precision = if self.opts.from_cents {
+        let precision = if self.opts.from_cents() {
             1.
         } else {
-            Self::pow(self.opts.precision)
+            Self::pow(self.opts.precision())
         };
 
         int_value *= number;
@@ -445,10 +456,10 @@ impl Currency {
             (int_value / count as f64).ceil()
         };
         let mut pennies = int_value.abs() - split.abs() * (count as f64).abs();
-        let precision = if self.opts.from_cents {
+        let precision = if self.opts.from_cents() {
             1.
         } else {
-            Self::pow(self.opts.precision)
+            Self::pow(self.opts.precision())
         };
         while count != 0 {
             let mut item = Self::new_float(split / precision, Some(self.opts.clone()));

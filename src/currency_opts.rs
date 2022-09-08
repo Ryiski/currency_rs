@@ -1,15 +1,15 @@
 #[derive(Debug, Clone)]
 pub struct CurrencyOpts {
-    pub symbol: String,
-    pub separator: String,
-    pub decimal: String,
-    pub precision: f64,
-    pub pattern: String,
-    pub negative_pattern: String,
-    pub from_cents: bool,
-    pub increment: Option<f64>,
-    pub use_vedic: bool,
-    pub error_on_invalid: bool,
+    symbol: String,
+    separator: String,
+    decimal: String,
+    precision: f64,
+    pattern: String,
+    negative_pattern: String,
+    from_cents: bool,
+    increment: Option<f64>,
+    use_vedic: bool,
+    error_on_invalid: bool,
 }
 
 impl Default for CurrencyOpts {
@@ -26,5 +26,129 @@ impl Default for CurrencyOpts {
             use_vedic: false,
             error_on_invalid: false,
         }
+    }
+}
+
+impl CurrencyOpts {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// `pow` takes a `f64` and returns a `f64`
+    ///
+    /// Arguments:
+    ///
+    /// * `p`: The power to raise 10 to.
+    ///
+    /// Returns:
+    ///
+    /// The value of 10 to the power of p.
+    fn pow(p: f64) -> f64 {
+        10_f64.powf(p)
+    }
+}
+
+// SETTERS
+impl CurrencyOpts {
+    pub fn set_symbol(mut self, symbol: &str) -> Self {
+        self.symbol = symbol.to_string();
+        Self { ..self }
+    }
+
+    pub fn set_separator(mut self, separator: &str) -> Self {
+        self.separator = separator.to_string();
+        Self { ..self }
+    }
+
+    pub fn set_decimal(mut self, decimal: &str) -> Self {
+        self.decimal = decimal.to_string();
+        Self { ..self }
+    }
+
+    pub fn set_precision(mut self, precision: f64) -> Self {
+        self.precision = precision;
+        Self { ..self }
+    }
+
+    pub fn set_pattern(mut self, pattern: &str) -> Self {
+        self.pattern = pattern.to_string();
+        Self { ..self }
+    }
+
+    pub fn set_negative_pattern(mut self, negative_pattern: &str) -> Self {
+        self.negative_pattern = negative_pattern.to_string();
+        Self { ..self }
+    }
+
+    pub fn set_from_cents(mut self, from_cents: bool) -> Self {
+        self.from_cents = from_cents;
+        Self { ..self }
+    }
+
+    pub fn set_increment(mut self, increment: f64) -> Self {
+        self.increment = Some(increment);
+        Self { ..self }
+    }
+
+    pub fn set_unset_increment(mut self) -> Self {
+        self.increment = None;
+        Self { ..self }
+    }
+
+    pub fn set_use_vedic(mut self, use_vedic: bool) -> Self {
+        self.use_vedic = use_vedic;
+        Self { ..self }
+    }
+
+    pub fn set_error_on_invalid(mut self, error_on_invalid: bool) -> Self {
+        self.error_on_invalid = error_on_invalid;
+        Self { ..self }
+    }
+}
+
+// GETTERS
+impl CurrencyOpts {
+    pub fn symbol(&self) -> &str {
+        self.symbol.as_str()
+    }
+
+    pub fn separator(&self) -> &str {
+        self.separator.as_str()
+    }
+
+    pub fn decimal(&self) -> &str {
+        self.decimal.as_str()
+    }
+
+    pub fn precision(&self) -> f64 {
+        self.precision
+    }
+
+    pub fn pattern(&self) -> &str {
+        self.pattern.as_str()
+    }
+
+    pub fn negative_pattern(&self) -> &str {
+        self.negative_pattern.as_str()
+    }
+
+    pub fn from_cents(&self) -> bool {
+        self.from_cents
+    }
+
+    pub fn increment(&self) -> f64 {
+        if let Some(inc) = self.increment {
+            inc
+        } else {
+            1. / Self::pow(self.precision)
+        }
+    }
+
+    pub fn use_vedic(&self) -> bool {
+        self.use_vedic
+    }
+
+    pub fn error_on_invalid(&self) -> bool {
+        self.error_on_invalid
     }
 }
