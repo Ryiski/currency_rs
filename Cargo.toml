@@ -1,0 +1,28 @@
+[package]
+name = "currency_rs"
+version = "1.0.0"
+edition = "2021"
+authors = ["Adel-ak"]
+description = "A rust library for handling currencies"
+homepage = "https://github.com/Adel-ak/currency_rs"
+license-file = "LICENSE.txt"
+readme = "README.md"
+documentation = "https://github.com/Adel-ak/currency_rs/blob/main/README.md"
+repository = "https://github.com/Adel-ak/currency_rs"
+keywords = [
+    "currency",
+    "money",
+    "utilities",
+    "accounting",
+    "format",
+    "number",
+    "parse",
+    "precision",
+    "decimal"
+  ]
+  
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fancy-regex = "0.10.0"
+
