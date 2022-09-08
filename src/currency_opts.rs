@@ -65,8 +65,8 @@ impl CurrencyOpts {
         Self { ..self }
     }
 
-    pub fn set_precision(mut self, precision: f64) -> Self {
-        self.precision = precision;
+    pub fn set_precision(mut self, precision: i64) -> Self {
+        self.precision = precision as f64;
         Self { ..self }
     }
 

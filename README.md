@@ -6,7 +6,7 @@
 
 </div>
 
-_currency_rs_ is library for working with currency values. it was inspired by [currency.js](https://github.com/scurker/currency.js) which was built to work around floating point issues in javascript.
+_currency_rs_ is library for working with currency values. it is inspired by [currency.js](https://github.com/scurker/currency.js) which was built to work around floating point issues in javascript.
 
 currency_rs works with values as integers behind the scenes, resolving some of the most basic precision problems.
 
@@ -54,13 +54,13 @@ Currency::new_string("123", Some(opt))
 
 let opt = CurrencyOpts::new()
     .set_from_cents(true)
-    .set_precision(0.);
+    .set_precision(0);
 
 Currency::new_float(123., Some(opt)).to_string();         // 123
 
 let opt = CurrencyOpts::new()
     .set_from_cents(true)
-    .set_precision(3.);
+    .set_precision(3);
 
 Currency::new_float(123., Some(opt)).to_string();         // 1.23
 ```
@@ -173,7 +173,7 @@ If you need to work with multiple currency values, the easiest way is to setup f
 fn usd(value: f64) -> Currency {
     let otp = CurrencyOpts::new()
         .set_symbol("$")
-        .set_precision(2.);
+        .set_precision(2);
 
     Currency::new_float(value, Some(otp))
 }
@@ -181,14 +181,14 @@ fn usd(value: f64) -> Currency {
 fn jpy(value: f64) -> Currency {
     let otp = CurrencyOpts::new()
         .set_symbol("¥")
-        .set_precision(0.);
+        .set_precision(0);
 
     Currency::new_float(value, Some(otp))
 }
 
 fn gas(value: f64) -> Currency {
      let otp = CurrencyOpts::new()
-        .set_precision(3.);
+        .set_precision(3);
 
     Currency::new_float(value, Some(otp))
 }

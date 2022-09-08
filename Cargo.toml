@@ -1,13 +1,13 @@
 [package]
 name = "currency_rs"
-version = "1.1.0"
+version = "1.1.1"
 edition = "2021"
 authors = ["Adel-ak"]
 description = "A rust library for handling currencies"
 homepage = "https://github.com/Adel-ak/currency_rs"
 license-file = "LICENSE.txt"
 readme = "README.md"
-documentation = "https://github.com/Adel-ak/currency_rs/blob/main/README.md"
+documentation = "https://docs.rs/currency_rs/latest/currency_rs"
 repository = "https://github.com/Adel-ak/currency_rs"
 keywords = [
     "currency",

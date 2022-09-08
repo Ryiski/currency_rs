@@ -134,7 +134,7 @@ fn should_round_negative_values_half_up() {
 
 #[test]
 fn currency_multiplication() {
-    let opts = Some(CurrencyOpts::new().set_precision(2.).set_increment(0.01));
+    let opts = Some(CurrencyOpts::new().set_precision(2).set_increment(0.01));
     let c1 = Currency::new_float(1.23, opts.clone()).multiply(2.);
     let c2 = Currency::new_float(0.1, opts).multiply(0.2);
 
@@ -149,7 +149,7 @@ fn currency_multiplication() {
 
 #[test]
 fn currency_multiplication_with_precision() {
-    let opts = Some(CurrencyOpts::new().set_precision(3.).set_increment(0.01));
+    let opts = Some(CurrencyOpts::new().set_precision(3).set_increment(0.01));
 
     let c1 = Currency::new_float(1.369, opts).multiply(3.);
 
@@ -165,7 +165,7 @@ fn currency_division() {
 
 #[test]
 fn currency_division_with_precision() {
-    let opts = Some(CurrencyOpts::new().set_precision(3.));
+    let opts = Some(CurrencyOpts::new().set_precision(3));
 
     let c1 = Currency::new_float(4.107, opts).divide(3.);
 
@@ -323,9 +323,9 @@ fn should_get_cent_value() {
 
 #[test]
 fn should_support_different_precision_values() {
-    let opts = Some(CurrencyOpts::new().set_precision(3.));
+    let opts = Some(CurrencyOpts::new().set_precision(3));
 
-    let opts2 = Some(CurrencyOpts::new().set_precision(0.).set_symbol("¥"));
+    let opts2 = Some(CurrencyOpts::new().set_precision(0).set_symbol("¥"));
 
     let c1 = Currency::new_float(1.234, opts);
     let c2 = Currency::new_float(1.234, opts2);
@@ -352,7 +352,7 @@ fn should_support_different_precision_values() {
 
 #[test]
 fn should_use_source_precision_for_arithmetic_with_different_precisions() {
-    let opts = Some(CurrencyOpts::new().set_precision(3.));
+    let opts = Some(CurrencyOpts::new().set_precision(3));
 
     let c1 = Currency::new_float(1.23, None);
     let c2 = Currency::new_float(1.239, opts);
@@ -395,13 +395,13 @@ fn should_have_int_value_and_real_value() {
 
 #[test]
 fn should_format_value_using_defaults() {
-    let opts = CurrencyOpts::new().set_precision(4.);
+    let opts = CurrencyOpts::new().set_precision(4);
 
     let value1 = Currency::new_float(1.23, None);
     let value2 = Currency::new_float(1234.56, None);
     let value3 = Currency::new_float(1234567.89, None);
     let value4 = Currency::new_float(1234567.8912, Some(opts.clone()));
-    let value5 = Currency::new_float(1234567., Some(opts.set_precision(0.)));
+    let value5 = Currency::new_float(1234567., Some(opts.set_precision(0)));
 
     assert_eq!(value1.format(), "$1.23", "value is not \"$1.23\"");
     assert_eq!(value2.format(), "$1,234.56", "value is not \"$1,234.45\"");
@@ -466,8 +466,8 @@ fn should_format_value_using_international() {
 fn should_format_using_patterns() {
     let opts = CurrencyOpts::new().set_pattern("# !");
 
-    let opts2 = Some(opts.clone().set_precision(4.));
-    let opts3 = Some(opts.clone().set_precision(0.));
+    let opts2 = Some(opts.clone().set_precision(4));
+    let opts3 = Some(opts.clone().set_precision(0));
 
     let value1 = Currency::new_float(1.23, Some(opts.clone()));
     let value2 = Currency::new_float(1234.56, Some(opts.clone()));
@@ -500,12 +500,12 @@ fn should_format_using_negative_patterns() {
 
     let opts2 = Some(
         CurrencyOpts::new()
-            .set_precision(4.)
+            .set_precision(4)
             .set_negative_pattern("! (#)"),
     );
     let opts3 = Some(
         CurrencyOpts::new()
-            .set_precision(0.)
+            .set_precision(0)
             .set_negative_pattern("! (#)"),
     );
 
@@ -750,7 +750,7 @@ fn should_allow_arbitrary_rounding_increments() {
     let opts3 = Some(
         CurrencyOpts::new()
             .set_symbol("")
-            .set_precision(0.)
+            .set_precision(0)
             .set_increment(5.),
     );
 
@@ -821,9 +821,9 @@ fn should_handle_max_safe_integer() {
 
 #[test]
 fn should_allow_creation_from_cents() {
-    let opts = Some(CurrencyOpts::new().set_precision(2.).set_from_cents(true));
-    let opts2 = Some(CurrencyOpts::new().set_precision(0.).set_from_cents(true));
-    let opts3 = Some(CurrencyOpts::new().set_precision(3.).set_from_cents(true));
+    let opts = Some(CurrencyOpts::new().set_precision(2).set_from_cents(true));
+    let opts2 = Some(CurrencyOpts::new().set_precision(0).set_from_cents(true));
+    let opts3 = Some(CurrencyOpts::new().set_precision(3).set_from_cents(true));
 
     let c1 = |v| Currency::new_float(v, opts.clone());
     let c2 = |v| Currency::new_float(v, opts2.clone());
@@ -863,9 +863,9 @@ fn should_allow_creation_from_cents() {
 
 #[test]
 fn should_parse_cents_from_a_number_when_using_from_cents_option() {
-    let opts = Some(CurrencyOpts::new().set_precision(2.).set_from_cents(true));
-    let opts2 = Some(CurrencyOpts::new().set_precision(0.).set_from_cents(true));
-    let opts3 = Some(CurrencyOpts::new().set_precision(3.).set_from_cents(true));
+    let opts = Some(CurrencyOpts::new().set_precision(2).set_from_cents(true));
+    let opts2 = Some(CurrencyOpts::new().set_precision(0).set_from_cents(true));
+    let opts3 = Some(CurrencyOpts::new().set_precision(3).set_from_cents(true));
 
     let c1 = Currency::new_float(123., opts);
     let c2 = Currency::new_float(123., opts2);
@@ -882,8 +882,8 @@ fn should_parse_cents_from_a_number_when_using_from_cents_option() {
 #[test]
 fn should_parse_cents_from_a_string_when_using_from_cents_option() {
     let opts = Some(CurrencyOpts::new().set_from_cents(true));
-    let opts2 = Some(CurrencyOpts::new().set_from_cents(true).set_precision(0.));
-    let opts3 = Some(CurrencyOpts::new().set_from_cents(true).set_precision(3.));
+    let opts2 = Some(CurrencyOpts::new().set_from_cents(true).set_precision(0));
+    let opts3 = Some(CurrencyOpts::new().set_from_cents(true).set_precision(3));
 
     let c1 = Currency::new_string("123", opts).unwrap();
     let c2 = Currency::new_string("123", opts2).unwrap();
@@ -961,7 +961,7 @@ fn should_handle_fractional_cents() {
 fn should_format_vedic_groupings() {
     let opts = Some(CurrencyOpts::new().set_use_vedic(true));
 
-    let opts2 = Some(CurrencyOpts::new().set_precision(4.).set_use_vedic(true));
+    let opts2 = Some(CurrencyOpts::new().set_precision(4).set_use_vedic(true));
 
     let c1 = |v| Currency::new_float(v, opts);
     let c2 = |v| Currency::new_float(v, opts2);
