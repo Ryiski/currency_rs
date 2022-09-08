@@ -1,0 +1,9 @@
+edition = "2021"
+hard_tabs = false
+tab_spaces = 4
+fn_args_layout = "Vertical"
+merge_derives = true
+remove_nested_parens = true
+reorder_imports = true
+reorder_modules = true
+use_field_init_shorthand = true

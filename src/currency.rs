@@ -10,14 +10,14 @@ pub enum CurrencyErr {
 }
 
 #[derive(Debug, Clone)]
-pub struct Currency {
+pub struct Currency<'a> {
     value: f64,
     int_value: f64,
     regex: Regex,
-    opts: CurrencyOpts,
+    opts: CurrencyOpts<'a>,
 }
 
-impl Currency {
+impl<'a> Currency<'a> {
     /// It returns the value of the currency.
     ///
     /// Returns:
@@ -46,7 +46,10 @@ impl Currency {
     /// Returns:
     ///
     /// A new instance of the Currency struct.
-    pub fn new_float(value: f64, opts: Option<CurrencyOpts>) -> Self {
+    pub fn new_float(
+        value: f64,
+        opts: Option<CurrencyOpts<'a>>,
+    ) -> Self {
         let currency_options = match opts {
             Some(options) => options,
             None => CurrencyOpts::new(),
@@ -66,7 +69,10 @@ impl Currency {
     /// Returns:
     ///
     /// A new instance of the Currency struct.
-    pub fn new_string(value: &str, opts: Option<CurrencyOpts>) -> Result<Self, CurrencyErr> {
+    pub fn new_string(
+        value: &str,
+        opts: Option<CurrencyOpts<'a>>,
+    ) -> Result<Self, CurrencyErr> {
         let currency_options = match opts {
             Some(options) => options,
             None => CurrencyOpts::default(),
@@ -86,7 +92,10 @@ impl Currency {
     /// Returns:
     ///
     /// A new instance of the Currency struct.
-    pub fn new_cur(cur: Self, opts: Option<CurrencyOpts>) -> Self {
+    pub fn new_cur(
+        cur: Self,
+        opts: Option<CurrencyOpts<'a>>,
+    ) -> Self {
         let currency_options = match opts {
             Some(options) => options,
             None => CurrencyOpts::default(),
@@ -106,7 +115,10 @@ impl Currency {
     /// Returns:
     ///
     /// A new instance of the Currency struct.
-    fn new(v: f64, opts: CurrencyOpts) -> Self {
+    fn new(
+        v: f64,
+        opts: CurrencyOpts<'a>,
+    ) -> Self {
         let precision = Self::pow(opts.precision());
 
         let int_value = v;
@@ -137,7 +149,11 @@ impl Currency {
     /// Returns:
     ///
     /// a f64 value.
-    fn parse(value: f64, opts: CurrencyOpts, use_rounding: bool) -> f64 {
+    fn parse(
+        value: f64,
+        opts: CurrencyOpts,
+        use_rounding: bool,
+    ) -> f64 {
         let mut v: f64 = value;
 
         let from_cents = opts.from_cents();
@@ -199,46 +215,6 @@ impl Currency {
                 Ok(0.)
             }
         };
-    }
-
-    /// It rounds a floating point number to the nearest integer
-    ///
-    /// Arguments:
-    ///
-    /// * `r`: The number to round.
-    ///
-    /// Returns:
-    ///
-    /// The rounded value of the input.
-    fn round(r: f64) -> f64 {
-        r.round()
-    }
-
-    /// It rounds a number to the nearest increment.
-    ///
-    /// Arguments:
-    ///
-    /// * `value`: The value to round.
-    /// * `increment`: The value to round to.
-    ///
-    /// Returns:
-    ///
-    /// The value of the rounded number.
-    fn rounding(value: f64, increment: f64) -> f64 {
-        Self::round(value / increment) * increment
-    }
-
-    /// `pow` takes a `f64` and returns a `f64`
-    ///
-    /// Arguments:
-    ///
-    /// * `p`: The power to raise 10 to.
-    ///
-    /// Returns:
-    ///
-    /// The value of 10 to the power of p.
-    fn pow(p: f64) -> f64 {
-        10_f64.powf(p)
     }
 
     pub fn format(&self) -> String {
@@ -307,8 +283,8 @@ impl Currency {
     /// Returns:
     ///
     /// The cents of the value.
-    pub fn cents(&self) -> i64 {
-        return (self.int_value % Self::pow(self.opts.precision())) as i64;
+    pub fn cents(&self) -> u64 {
+        return (self.int_value % Self::pow(self.opts.precision())) as u64;
     }
 
     /// It returns the value of the dollar.
@@ -334,7 +310,10 @@ impl Currency {
     /// Returns:
     ///
     /// A new instance of the Money struct.
-    pub fn add(&self, number: f64) -> Self {
+    pub fn add(
+        &self,
+        number: f64,
+    ) -> Self {
         let mut int_value = self.int_value;
 
         let p = if self.opts.from_cents() {
@@ -358,7 +337,10 @@ impl Currency {
     /// Returns:
     ///
     /// A new instance of the Money struct.
-    pub fn add_string(&self, number: &str) -> Result<Self, CurrencyErr> {
+    pub fn add_string(
+        &self,
+        number: &str,
+    ) -> Result<Self, CurrencyErr> {
         let mut int_value = self.int_value;
 
         let p = if self.opts.from_cents() {
@@ -381,7 +363,10 @@ impl Currency {
     /// Returns:
     ///
     /// A new instance of the Money struct.
-    pub fn subtract(&self, number: f64) -> Self {
+    pub fn subtract(
+        &self,
+        number: f64,
+    ) -> Self {
         let mut int_value = self.int_value;
 
         let p = if self.opts.from_cents() {
@@ -404,7 +389,10 @@ impl Currency {
     /// Returns:
     ///
     /// A new instance of the Money struct.
-    pub fn multiply(&self, number: f64) -> Self {
+    pub fn multiply(
+        &self,
+        number: f64,
+    ) -> Self {
         let mut int_value = self.int_value;
         let precision = if self.opts.from_cents() {
             1.
@@ -426,7 +414,10 @@ impl Currency {
     /// Returns:
     ///
     /// A new instance of the Money struct.
-    pub fn divide(&self, number: f64) -> Self {
+    pub fn divide(
+        &self,
+        number: f64,
+    ) -> Self {
         let mut int_value = self.int_value;
         if number > 0. {
             int_value /= Self::parse(number, self.opts.clone(), false);
@@ -446,7 +437,10 @@ impl Currency {
     /// Returns:
     ///
     /// A vector of Money objects.
-    pub fn distribute(&self, mut count: i64) -> Vec<Self> {
+    pub fn distribute(
+        &self,
+        mut count: i64,
+    ) -> Vec<Self> {
         let int_value = self.int_value;
 
         let mut distribution: Vec<Self> = vec![];
@@ -481,6 +475,49 @@ impl Currency {
         return distribution;
     }
 
+    /// It rounds a floating point number to the nearest integer
+    ///
+    /// Arguments:
+    ///
+    /// * `r`: The number to round.
+    ///
+    /// Returns:
+    ///
+    /// The rounded value of the input.
+    fn round(r: f64) -> f64 {
+        r.round()
+    }
+
+    /// It rounds a number to the nearest increment.
+    ///
+    /// Arguments:
+    ///
+    /// * `value`: The value to round.
+    /// * `increment`: The value to round to.
+    ///
+    /// Returns:
+    ///
+    /// The value of the rounded number.
+    fn rounding(
+        value: f64,
+        increment: f64,
+    ) -> f64 {
+        Self::round(value / increment) * increment
+    }
+
+    /// `pow` takes a `f64` and returns a `f64`
+    ///
+    /// Arguments:
+    ///
+    /// * `p`: The power to raise 10 to.
+    ///
+    /// Returns:
+    ///
+    /// The value of 10 to the power of p.
+    fn pow(p: f64) -> f64 {
+        10_f64.powf(p)
+    }
+
     /// It rounds a float to a given number of decimal places.
     ///
     /// Arguments:
@@ -491,11 +528,28 @@ impl Currency {
     /// Returns:
     ///
     /// A function that takes two arguments, a float and an unsigned integer, and returns a float.
-    fn round_dp(v: f64, dp: usize) -> f64 {
+    fn round_dp(
+        v: f64,
+        dp: usize,
+    ) -> f64 {
         format!("{:.1$}", v, dp).parse::<f64>().unwrap()
     }
 
-    fn round_dp_to_string(v: f64, dp: usize) -> String {
+    /// It takes a floating point number and a number of decimal places, and returns a string
+    /// representation of the floating point number rounded to the specified number of decimal places
+    ///
+    /// Arguments:
+    ///
+    /// * `v`: the value to round
+    /// * `dp`: The number of decimal places to round to.
+    ///
+    /// Returns:
+    ///
+    /// A string
+    fn round_dp_to_string(
+        v: f64,
+        dp: usize,
+    ) -> String {
         format!("{:.1$}", v, dp)
     }
 }
