@@ -161,10 +161,10 @@ let otp = CurrencyOpts {
 Currency::new_float(1.48, Some(otp)).format(); // "$1.50"
 ```
 
-`useVedic` _default_: `false`<br/>
+`use_vedic` _default_: `false`<br/>
 Formats number groupings using the Indian Numbering System, i.e. `10,00,000.00`
 
-`fromCents` _default_: `false`<br/>
+`from_cents` _default_: `false`<br/>
 Parse the amount value as a minor currency unit (e.g. cents in a dollar) instead of dollars.
 
 ### Internationalization Examples
