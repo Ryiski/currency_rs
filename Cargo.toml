@@ -13,10 +13,6 @@ keywords = [
     "currency",
     "money",
     "utilities",
-    "accounting",
-    "format",
-    "number",
-    "parse",
     "precision",
     "decimal"
   ]
