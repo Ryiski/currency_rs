@@ -9,29 +9,29 @@
 //! ```
 //! use currency_rs::{Currency, CurrencyOpts};
 //!
-//! fn main() {
-//!     let item_price = 1.33;
-//!     let qty = 3.;
-//!     let flat_discount = 10.;
-//!     let cur_opts = Some(
-//!         CurrencyOpts::new()
-//!             .set_pattern("$ #")
-//!             .set_precision(2)
-//!             .set_increment(0.001),
-//!     );
-//!     let mut cur = Currency::new_float(item_price, cur_opts);
-//!     cur = cur.multiply(qty);
 //!
-//!     if cur.value() > 30. {
-//!         cur = cur.subtract(flat_discount);
-//!     }
+//! let item_price = 1.33;
+//! let qty = 3.;
+//! let flat_discount = 10.;
+//! let cur_opts = Some(
+//!     CurrencyOpts::new()
+//!         .set_pattern("$ #")
+//!         .set_precision(2)
+//!         .set_increment(0.001),
+//! );
+//! let mut cur = Currency::new_float(item_price, cur_opts);
+//! cur = cur.multiply(qty);
 //!
-//!     let final_total = cur.format();
-//!
-//!     println!("Final Total: {}", final_total);
+//! if cur.value() > 30. {
+//!     cur = cur.subtract(flat_discount);
 //! }
+//!
+//! let final_total = cur.format();
+//!
+//! println!("Final Total: {}", final_total);
+//!
 //! ```
-
+#[allow(clippy::needless_doctest_main)]
 mod currency;
 mod currency_opts;
 

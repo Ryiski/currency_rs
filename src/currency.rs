@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::CurrencyOpts;
 use fancy_regex::Regex;
 
@@ -165,7 +167,11 @@ impl<'a> Currency<'a> {
             v = Self::round_dp(v, 4)
         }
 
-        return if use_rounding { Self::round(v) } else { v };
+        if use_rounding {
+            Self::round(v)
+        } else {
+            v
+        }
     }
 
     /// It takes a string, removes all non-numeric characters, converts it to a float, and then rounds it
@@ -181,20 +187,20 @@ impl<'a> Currency<'a> {
         opts: CurrencyOpts,
         use_rounding: bool,
     ) -> Result<f64, CurrencyErr> {
-        let decimal = &opts.decimal();
+        let decimal = opts.decimal();
 
-        let from_cents = &opts.from_cents();
+        let from_cents = opts.from_cents();
         let precision = Self::pow(opts.precision());
 
-        let regex = Regex::new(&format!(r"[^-\d{}]", decimal)).unwrap();
-        let regex_allow_negative = Regex::new(&format!(r"\((.*)\)")).unwrap();
-        let regex_decimal_string = Regex::new(&format!(r"{}", "\\".to_owned() + decimal)).unwrap();
+        let regex = Regex::new(&format!(r"[^-\d{decimal}]")).unwrap();
+        let regex_allow_negative = Regex::new(r"\((.*)\)").unwrap();
+        let regex_decimal_string = Regex::new(&("\\".to_string() + decimal)).unwrap();
 
-        let value_allow_negative = regex_allow_negative.replace(&value, "-$1");
+        let value_allow_negative = regex_allow_negative.replace(value, "-$1");
         let value_non_numeric_values = regex.replace_all(&value_allow_negative, "");
         let v = regex_decimal_string.replace_all(&value_non_numeric_values, ".");
 
-        return match v.parse::<f64>() {
+        match v.parse::<f64>() {
             Ok(mut parsed_val) => {
                 if !from_cents {
                     parsed_val *= precision; // scale number to integer value
@@ -214,7 +220,7 @@ impl<'a> Currency<'a> {
 
                 Ok(0.)
             }
-        };
+        }
     }
 
     pub fn format(&self) -> String {
@@ -246,7 +252,7 @@ impl<'a> Currency<'a> {
         };
 
         let cents = if precision > 0. {
-            decimal.to_owned() + &_cents.to_string()
+            decimal.to_owned() + &_cents
         } else {
             "".to_string()
         };
@@ -257,25 +263,9 @@ impl<'a> Currency<'a> {
             negative_pattern
         };
 
-        let val = pattern
-            .replace("!", symbol)
-            .replace('#', &(dollars + &cents));
-
-        return val;
-    }
-
-    /// It returns a string representation of the currency.
-    ///
-    /// Returns:
-    ///
-    /// A string
-    pub fn to_string(&self) -> String {
-        let precision = self.opts.precision();
-        let increment = self.opts.increment();
-
-        let rounded_value = Self::rounding(self.value, increment);
-        let currency: String = Self::round_dp_to_string(rounded_value, precision as usize);
-        return currency;
+        pattern
+            .replace('!', symbol)
+            .replace('#', &(dollars + &cents))
     }
 
     /// It returns the cents of the value.
@@ -284,7 +274,7 @@ impl<'a> Currency<'a> {
     ///
     /// The cents of the value.
     pub fn cents(&self) -> u64 {
-        return (self.int_value % Self::pow(self.opts.precision())) as u64;
+        (self.int_value % Self::pow(self.opts.precision())) as u64
     }
 
     /// It returns the value of the dollar.
@@ -293,11 +283,11 @@ impl<'a> Currency<'a> {
     ///
     /// The value of the money object.
     pub fn dollars(&self) -> i64 {
-        return if self.value > 0. {
+        (if self.value > 0. {
             self.value.floor()
         } else {
             self.value.ceil()
-        } as i64;
+        }) as i64
     }
 
     /// > It takes a number, converts it to an integer, adds it to the current integer value, and then
@@ -472,7 +462,7 @@ impl<'a> Currency<'a> {
             count -= 1;
         }
 
-        return distribution;
+        distribution
     }
 
     /// It rounds a floating point number to the nearest integer
@@ -532,7 +522,7 @@ impl<'a> Currency<'a> {
         v: f64,
         dp: usize,
     ) -> f64 {
-        format!("{:.1$}", v, dp).parse::<f64>().unwrap()
+        format!("{v:.dp$}").parse::<f64>().unwrap()
     }
 
     /// It takes a floating point number and a number of decimal places, and returns a string
@@ -550,6 +540,30 @@ impl<'a> Currency<'a> {
         v: f64,
         dp: usize,
     ) -> String {
-        format!("{:.1$}", v, dp)
+        format!("{v:.dp$}")
     }
 }
+
+impl Display for Currency<'_> {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
+        let precision = self.opts.precision();
+        let increment = self.opts.increment();
+
+        let rounded_value = Self::rounding(self.value, increment);
+        let currency: String = Self::round_dp_to_string(rounded_value, precision as usize);
+
+        write!(f, "{currency}")
+    }
+}
+
+// It returns a string representation of the currency.
+//
+// Returns:
+//
+// / A string
+// pub fn to_string(&self) -> String {
+
+// }

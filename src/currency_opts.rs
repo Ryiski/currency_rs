@@ -15,12 +15,12 @@ pub struct CurrencyOpts<'a> {
 impl Default for CurrencyOpts<'_> {
     fn default() -> Self {
         Self {
-            symbol: "$".into(),
-            separator: ",".into(),
-            decimal: ".".into(),
+            symbol: "$",
+            separator: ",",
+            decimal: ".",
             precision: 2.,
-            pattern: "!#".into(),
-            negative_pattern: "-!#".into(),
+            pattern: "!#",
+            negative_pattern: "-!#",
             from_cents: false,
             increment: None,
             use_vedic: false,
