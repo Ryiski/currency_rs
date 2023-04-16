@@ -12,14 +12,14 @@ pub enum CurrencyErr {
 }
 
 #[derive(Debug, Clone)]
-pub struct Currency<'a> {
+pub struct Currency {
     value: f64,
     int_value: f64,
     regex: Regex,
-    opts: CurrencyOpts<'a>,
+    opts: CurrencyOpts,
 }
 
-impl<'a> Currency<'a> {
+impl Currency {
     /// It returns the value of the currency.
     ///
     /// Returns:
@@ -50,7 +50,7 @@ impl<'a> Currency<'a> {
     /// A new instance of the Currency struct.
     pub fn new_float(
         value: f64,
-        opts: Option<CurrencyOpts<'a>>,
+        opts: Option<CurrencyOpts>,
     ) -> Self {
         let currency_options = match opts {
             Some(options) => options,
@@ -73,7 +73,7 @@ impl<'a> Currency<'a> {
     /// A new instance of the Currency struct.
     pub fn new_string(
         value: &str,
-        opts: Option<CurrencyOpts<'a>>,
+        opts: Option<CurrencyOpts>,
     ) -> Result<Self, CurrencyErr> {
         let currency_options = match opts {
             Some(options) => options,
@@ -96,7 +96,7 @@ impl<'a> Currency<'a> {
     /// A new instance of the Currency struct.
     pub fn new_cur(
         cur: Self,
-        opts: Option<CurrencyOpts<'a>>,
+        opts: Option<CurrencyOpts>,
     ) -> Self {
         let currency_options = match opts {
             Some(options) => options,
@@ -119,7 +119,7 @@ impl<'a> Currency<'a> {
     /// A new instance of the Currency struct.
     fn new(
         v: f64,
-        opts: CurrencyOpts<'a>,
+        opts: CurrencyOpts,
     ) -> Self {
         let precision = Self::pow(opts.precision());
 
@@ -194,7 +194,7 @@ impl<'a> Currency<'a> {
 
         let regex = Regex::new(&format!(r"[^-\d{decimal}]")).unwrap();
         let regex_allow_negative = Regex::new(r"\((.*)\)").unwrap();
-        let regex_decimal_string = Regex::new(&("\\".to_string() + decimal)).unwrap();
+        let regex_decimal_string = Regex::new(&("\\".to_string() + &decimal)).unwrap();
 
         let value_allow_negative = regex_allow_negative.replace(value, "-$1");
         let value_non_numeric_values = regex.replace_all(&value_allow_negative, "");
@@ -241,7 +241,7 @@ impl<'a> Currency<'a> {
             .regex
             .replace_all(
                 split_collection.first().unwrap(),
-                "$1".to_owned() + separator,
+                "$1".to_owned() + &separator,
             )
             .to_string();
 
@@ -252,7 +252,7 @@ impl<'a> Currency<'a> {
         };
 
         let cents = if precision > 0. {
-            decimal.to_owned() + &_cents
+            decimal + &_cents
         } else {
             "".to_string()
         };
@@ -264,7 +264,7 @@ impl<'a> Currency<'a> {
         };
 
         pattern
-            .replace('!', symbol)
+            .replace('!', &symbol)
             .replace('#', &(dollars + &cents))
     }
 
@@ -544,7 +544,7 @@ impl<'a> Currency<'a> {
     }
 }
 
-impl Display for Currency<'_> {
+impl Display for Currency {
     fn fmt(
         &self,
         f: &mut std::fmt::Formatter<'_>,

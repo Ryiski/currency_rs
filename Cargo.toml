@@ -1,6 +1,6 @@
 [package]
 name = "currency_rs"
-version = "1.1.3"
+version = "1.1.4"
 edition = "2021"
 authors = ["Adel-ak"]
 description = "A rust library for handling currencies"

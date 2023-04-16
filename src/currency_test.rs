@@ -871,11 +871,11 @@ fn should_parse_cents_from_a_number_when_using_from_cents_option() {
     let c2 = Currency::new_float(123., opts2);
     let c3 = Currency::new_float(123., opts3);
 
-    assert_eq!(c1.clone().value(), 1.23);
+    assert_eq!(c1.value(), 1.23);
     assert_eq!(c1.int_value(), 123.);
-    assert_eq!(c2.clone().value(), 123.);
+    assert_eq!(c2.value(), 123.);
     assert_eq!(c2.int_value(), 123.);
-    assert_eq!(c3.clone().value(), 0.123);
+    assert_eq!(c3.value(), 0.123);
     assert_eq!(c3.int_value(), 123.);
 }
 
@@ -889,11 +889,11 @@ fn should_parse_cents_from_a_string_when_using_from_cents_option() {
     let c2 = Currency::new_string("123", opts2).unwrap();
     let c3 = Currency::new_string("123", opts3).unwrap();
 
-    assert_eq!(c1.clone().value(), 1.23);
+    assert_eq!(c1.value(), 1.23);
     assert_eq!(c1.int_value(), 123.);
-    assert_eq!(c2.clone().value(), 123.);
+    assert_eq!(c2.value(), 123.);
     assert_eq!(c2.int_value(), 123.);
-    assert_eq!(c3.clone().value(), 0.123);
+    assert_eq!(c3.value(), 0.123);
     assert_eq!(c3.int_value(), 123.);
 }
 
