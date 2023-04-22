@@ -1,6 +1,6 @@
 [package]
 name = "currency_rs"
-version = "1.1.4"
+version = "1.2.0"
 edition = "2021"
 authors = ["Adel-ak"]
 description = "A rust library for handling currencies"
@@ -15,3 +15,13 @@ keywords = ["currency", "money", "utilities", "precision", "decimal"]
 
 [dependencies]
 fancy-regex = "0.11.0"
+lazy_static = "1.4.0"
+
+[dev-dependencies]
+criterion = "0.4.0"
+rand = { version = "0.8.5", features = ["serde"] }
+
+
+[[bench]]
+name = "currency"
+harness = false

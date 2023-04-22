@@ -1,21 +1,13 @@
+use crate::{
+    allow_negative_values, convert_any_decimal_values, format_dollar,
+    replace_any_non_numeric_values, CurrencyErr, CurrencyOpts,
+};
 use std::fmt::Display;
-
-use crate::CurrencyOpts;
-use fancy_regex::Regex;
-
-const GROUP_REGEX: &str = r"(\d)(?=(\d{3})+\b)";
-const VEDIC_REGEX: &str = r"(\d)(?=(\d\d)+\d\b)";
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum CurrencyErr {
-    ParseStringErr(String),
-}
 
 #[derive(Debug, Clone)]
 pub struct Currency {
     value: f64,
     int_value: f64,
-    regex: Regex,
     opts: CurrencyOpts,
 }
 
@@ -56,7 +48,8 @@ impl Currency {
             Some(options) => options,
             None => CurrencyOpts::new(),
         };
-        let v = Self::parse(value, currency_options.clone(), true);
+
+        let v = Self::parse(value, &currency_options, true);
 
         Self::new(v, currency_options)
     }
@@ -79,7 +72,8 @@ impl Currency {
             Some(options) => options,
             None => CurrencyOpts::default(),
         };
-        let v = Self::parse_string(value, currency_options.clone(), true)?;
+
+        let v = Self::parse_string(value, &currency_options, true)?;
 
         Ok(Self::new(v, currency_options))
     }
@@ -102,7 +96,8 @@ impl Currency {
             Some(options) => options,
             None => CurrencyOpts::default(),
         };
-        let v = Self::parse(cur.value, currency_options.clone(), true);
+
+        let v = Self::parse(cur.value, &currency_options, true);
 
         Self::new(v, currency_options)
     }
@@ -124,18 +119,12 @@ impl Currency {
         let precision = Self::pow(opts.precision());
 
         let int_value = v;
-        let value = int_value / precision;
 
-        let regex = if opts.use_vedic() {
-            Regex::new(VEDIC_REGEX).unwrap()
-        } else {
-            Regex::new(GROUP_REGEX).unwrap()
-        };
+        let value = int_value / precision;
 
         Self {
             value,
             int_value,
-            regex,
             opts,
         }
     }
@@ -153,7 +142,7 @@ impl Currency {
     /// a f64 value.
     fn parse(
         value: f64,
-        opts: CurrencyOpts,
+        opts: &CurrencyOpts,
         use_rounding: bool,
     ) -> f64 {
         let mut v: f64 = value;
@@ -184,23 +173,22 @@ impl Currency {
     /// * `use_rounding`: If true, the value will be rounded to the nearest integer.
     fn parse_string(
         value: &str,
-        opts: CurrencyOpts,
+        opts: &CurrencyOpts,
         use_rounding: bool,
     ) -> Result<f64, CurrencyErr> {
         let decimal = opts.decimal();
 
         let from_cents = opts.from_cents();
+
         let precision = Self::pow(opts.precision());
 
-        let regex = Regex::new(&format!(r"[^-\d{decimal}]")).unwrap();
-        let regex_allow_negative = Regex::new(r"\((.*)\)").unwrap();
-        let regex_decimal_string = Regex::new(&("\\".to_string() + &decimal)).unwrap();
+        let value_allow_negative = allow_negative_values(value);
 
-        let value_allow_negative = regex_allow_negative.replace(value, "-$1");
-        let value_non_numeric_values = regex.replace_all(&value_allow_negative, "");
-        let v = regex_decimal_string.replace_all(&value_non_numeric_values, ".");
+        let numeric_values = replace_any_non_numeric_values(decimal.clone(), value_allow_negative);
 
-        match v.parse::<f64>() {
+        let value = convert_any_decimal_values(decimal, numeric_values);
+
+        match value.parse::<f64>() {
             Ok(mut parsed_val) => {
                 if !from_cents {
                     parsed_val *= precision; // scale number to integer value
@@ -215,7 +203,7 @@ impl Currency {
             }
             Err(err) => {
                 if opts.error_on_invalid() {
-                    return Err(CurrencyErr::ParseStringErr(err.to_string()));
+                    return Err(CurrencyErr::ParseErr(err.to_string()));
                 }
 
                 Ok(0.)
@@ -225,34 +213,42 @@ impl Currency {
 
     pub fn format(&self) -> String {
         let precision = self.opts.precision();
+
         let increment = self.opts.increment();
+
         let rounded_value = Self::rounding(self.value, increment);
-        let currency: String = Self::round_dp_to_string(rounded_value, precision as usize);
 
         let pos_pattern = self.opts.pattern();
+
         let negative_pattern = self.opts.negative_pattern();
+
         let symbol = self.opts.symbol();
+
         let separator = self.opts.separator();
+
         let decimal = self.opts.decimal();
-        let split = Regex::new(r"^-").unwrap().replace(&currency, "");
-        let split_collection: Vec<&str> = split.split('.').collect();
 
-        let dollars = self
-            .regex
-            .replace_all(
-                split_collection.first().unwrap(),
-                "$1".to_owned() + &separator,
-            )
-            .to_string();
+        let mut currency: String =
+            Self::round_dp_to_string(rounded_value, self.opts.precision() as usize);
 
-        let _cents = if split_collection.len() > 1 {
-            split_collection.last().unwrap().to_string()
+        currency = currency.replacen('-', "", 1);
+
+        let split_currency: Vec<&str> = currency.split('.').collect();
+
+        let dollars = format_dollar(
+            self.opts.use_vedic(),
+            split_currency.first().unwrap().to_string(),
+            separator,
+        );
+
+        let mut cents = if split_currency.len() > 1 {
+            split_currency.last().unwrap().to_string()
         } else {
             "0".to_string()
         };
 
-        let cents = if precision > 0. {
-            decimal + &_cents
+        cents = if precision > 0. {
+            decimal + &cents
         } else {
             "".to_string()
         };
@@ -300,8 +296,9 @@ impl Currency {
     /// Returns:
     ///
     /// A new instance of the Money struct.
+    #[allow(clippy::should_implement_trait)]
     pub fn add(
-        &self,
+        self,
         number: f64,
     ) -> Self {
         let mut int_value = self.int_value;
@@ -312,9 +309,9 @@ impl Currency {
             Self::pow(self.opts.precision())
         };
 
-        int_value += Self::parse(number, self.opts.clone(), true);
+        int_value += Self::parse(number, &self.opts, true);
 
-        Self::new_float(int_value / p, Some(self.opts.clone()))
+        Self::new_float(int_value / p, Some(self.opts))
     }
 
     /// > It takes a number, converts it to an integer, adds it to the current integer value, and then
@@ -328,7 +325,7 @@ impl Currency {
     ///
     /// A new instance of the Money struct.
     pub fn add_string(
-        &self,
+        self,
         number: &str,
     ) -> Result<Self, CurrencyErr> {
         let mut int_value = self.int_value;
@@ -339,9 +336,9 @@ impl Currency {
             Self::pow(self.opts.precision())
         };
 
-        int_value += Self::parse_string(number, self.opts.clone(), true)?;
+        int_value += Self::parse_string(number, &self.opts, true)?;
 
-        Ok(Self::new_float(int_value / p, Some(self.opts.clone())))
+        Ok(Self::new_float(int_value / p, Some(self.opts)))
     }
 
     /// > Subtracts a number from the current instance
@@ -354,7 +351,7 @@ impl Currency {
     ///
     /// A new instance of the Money struct.
     pub fn subtract(
-        &self,
+        self,
         number: f64,
     ) -> Self {
         let mut int_value = self.int_value;
@@ -365,9 +362,9 @@ impl Currency {
             Self::pow(self.opts.precision())
         };
 
-        int_value -= Self::parse(number, self.opts.clone(), true);
+        int_value -= Self::parse(number, &self.opts, true);
 
-        Self::new_float(int_value / p, Some(self.opts.clone()))
+        Self::new_float(int_value / p, Some(self.opts))
     }
 
     /// > Multiply the value of the current instance by the given number
@@ -380,7 +377,7 @@ impl Currency {
     ///
     /// A new instance of the Money struct.
     pub fn multiply(
-        &self,
+        self,
         number: f64,
     ) -> Self {
         let mut int_value = self.int_value;
@@ -392,7 +389,7 @@ impl Currency {
 
         int_value *= number;
 
-        Self::new_float(int_value / precision, Some(self.opts.clone()))
+        Self::new_float(int_value / precision, Some(self.opts))
     }
 
     /// It divides the number by the number passed in.
@@ -405,15 +402,15 @@ impl Currency {
     ///
     /// A new instance of the Money struct.
     pub fn divide(
-        &self,
+        self,
         number: f64,
     ) -> Self {
         let mut int_value = self.int_value;
         if number > 0. {
-            int_value /= Self::parse(number, self.opts.clone(), false);
-            Self::new_float(int_value, Some(self.opts.clone()))
+            int_value /= Self::parse(number, &self.opts, false);
+            Self::new_float(int_value, Some(self.opts))
         } else {
-            self.clone()
+            self
         }
     }
 
@@ -428,23 +425,27 @@ impl Currency {
     ///
     /// A vector of Money objects.
     pub fn distribute(
-        &self,
+        self,
         mut count: i64,
     ) -> Vec<Self> {
         let int_value = self.int_value;
 
         let mut distribution: Vec<Self> = vec![];
+
         let split = if int_value >= 0. {
             (int_value / count as f64).floor()
         } else {
             (int_value / count as f64).ceil()
         };
+
         let mut pennies = int_value.abs() - split.abs() * (count as f64).abs();
+
         let precision = if self.opts.from_cents() {
             1.
         } else {
             Self::pow(self.opts.precision())
         };
+
         while count != 0 {
             let mut item = Self::new_float(split / precision, Some(self.opts.clone()));
 
@@ -550,20 +551,13 @@ impl Display for Currency {
         f: &mut std::fmt::Formatter<'_>,
     ) -> std::fmt::Result {
         let precision = self.opts.precision();
+
         let increment = self.opts.increment();
 
         let rounded_value = Self::rounding(self.value, increment);
+
         let currency: String = Self::round_dp_to_string(rounded_value, precision as usize);
 
         write!(f, "{currency}")
     }
 }
-
-// It returns a string representation of the currency.
-//
-// Returns:
-//
-// / A string
-// pub fn to_string(&self) -> String {
-
-// }

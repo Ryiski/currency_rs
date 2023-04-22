@@ -1,5 +1,5 @@
-use crate::currency::CurrencyErr;
 use crate::Currency;
+use crate::CurrencyErr;
 use crate::CurrencyOpts;
 
 #[test]
@@ -66,7 +66,7 @@ fn should_return_int_value() {
 fn should_be_immutable() {
     let c1 = Currency::new_float(1., None);
 
-    c1.add(0.25);
+    c1.clone().add(0.25);
 
     assert_eq!(c1.value(), 1., "original value not modified");
 }
@@ -176,7 +176,7 @@ fn currency_division_with_precision() {
 fn should_parse_negative_values() {
     let pos = Currency::new_float(1.23, None);
     let neg = Currency::new_float(-1.23, None);
-    let distribute = neg.distribute(4);
+    let distribute = neg.clone().distribute(4);
 
     let mut total = 0.;
 
@@ -224,7 +224,7 @@ fn should_use_source_formatting_for_mixed_currency_formats() {
     let c1 = Currency::new_string("1,234.56", None).unwrap();
     let c2 = Currency::new_string("'1 234,56", opts).unwrap();
 
-    assert_eq!(c1.add(c2.value()).format(), "$2,469.12");
+    assert_eq!(c1.clone().add(c2.value()).format(), "$2,469.12");
     assert_eq!(c2.add(c1.value()).format(), "$2 469,12");
 }
 
@@ -248,7 +248,7 @@ fn should_throw_exception_with_invalid_input() {
     let opts = Some(CurrencyOpts::new().set_error_on_invalid(true));
     let value_err = Currency::new_string("abc", opts).unwrap_err();
 
-    assert!(matches!(value_err, CurrencyErr::ParseStringErr(_)));
+    assert!(matches!(value_err, CurrencyErr::ParseErr(_)));
 }
 
 #[test]
@@ -305,8 +305,8 @@ fn should_create_non_equal_distribution_with_a_negative_penny() {
 fn should_get_dollar_value() {
     let value = Currency::new_float(1.23, None);
 
-    assert_eq!(value.add(2.).dollars(), 3, "is dollar amount");
-    assert_eq!(value.add(0.8).dollars(), 2, "is dollar amount");
+    assert_eq!(value.clone().add(2.).dollars(), 3, "is dollar amount");
+    assert_eq!(value.clone().add(0.8).dollars(), 2, "is dollar amount");
     assert_eq!(
         value.subtract(3.).dollars(),
         -1,
@@ -334,10 +334,10 @@ fn should_support_different_precision_values() {
     assert_eq!(c2.value(), 1.);
     assert_eq!(c1.int_value(), 1234.);
     assert_eq!(c2.int_value(), 1.);
-    assert_eq!(c1.add(4.567).value(), 5.801);
-    assert_eq!(c2.add(4.567).value(), 6.);
-    assert_eq!(c1.subtract(4.567).value(), -3.333);
-    assert_eq!(c2.subtract(4.567).value(), -4.);
+    assert_eq!(c1.clone().add(4.567).value(), 5.801);
+    assert_eq!(c2.clone().add(4.567).value(), 6.);
+    assert_eq!(c1.clone().subtract(4.567).value(), -3.333);
+    assert_eq!(c2.clone().subtract(4.567).value(), -4.);
     assert_eq!(c1.cents(), 234);
     assert_eq!(c2.cents(), 0);
     assert_eq!(c1.format(), "$1.234");
@@ -357,7 +357,7 @@ fn should_use_source_precision_for_arithmetic_with_different_precisions() {
     let c1 = Currency::new_float(1.23, None);
     let c2 = Currency::new_float(1.239, opts);
 
-    assert_eq!(c1.add(c2.value()).value(), 2.47);
+    assert_eq!(c1.clone().add(c2.value()).value(), 2.47);
     assert_eq!(c2.add(c1.value()).value(), 2.469);
 }
 
@@ -404,7 +404,7 @@ fn should_format_value_using_defaults() {
     let value5 = Currency::new_float(1234567., Some(opts.set_precision(0)));
 
     assert_eq!(value1.format(), "$1.23", "value is not \"$1.23\"");
-    assert_eq!(value2.format(), "$1,234.56", "value is not \"$1,234.45\"");
+    assert_eq!(value2.format(), "$1,234.56", "value is not \"$1,234.56\"");
     assert_eq!(
         value3.format(),
         "$1,234,567.89",
@@ -424,7 +424,7 @@ fn should_format_value_using_defaults() {
     assert_eq!(
         value2.multiply(-1.).format(),
         "-$1,234.56",
-        "value is not \"-$1,234.45\""
+        "value is not \"-$1,234.56\""
     );
     assert_eq!(
         value3.multiply(-1.).format(),
@@ -904,7 +904,7 @@ fn should_handle_add_with_from_cents_option() {
     let c1 = Currency::new_float(12345., opts.clone());
     let c2 = Currency::new_float(123., opts);
 
-    assert_eq!(c1.add(123.).value(), 124.68);
+    assert_eq!(c1.clone().add(123.).value(), 124.68);
     assert_eq!(c1.add(c2.int_value()).value(), 124.68);
 }
 
@@ -915,7 +915,7 @@ fn should_handle_subtract_with_from_cents_option() {
     let c1 = Currency::new_float(12345., opts.clone());
     let c2 = Currency::new_float(12345., opts);
 
-    assert_eq!(c1.subtract(123.).value(), 122.22);
+    assert_eq!(c1.clone().subtract(123.).value(), 122.22);
     assert_eq!(c1.subtract(c2.value()).value(), 122.22);
 }
 

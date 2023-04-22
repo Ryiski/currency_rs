@@ -1,7 +1,7 @@
 edition = "2021"
 hard_tabs = false
 tab_spaces = 4
-fn_args_layout = "Vertical"
+fn_params_layout = "Vertical"
 merge_derives = true
 remove_nested_parens = true
 reorder_imports = true

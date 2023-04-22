@@ -31,12 +31,16 @@
 //! println!("Final Total: {}", final_total);
 //!
 //! ```
-#[allow(clippy::needless_doctest_main)]
+
 mod currency;
+mod currency_err;
 mod currency_opts;
+mod currency_regex;
 
 pub use currency::Currency;
+pub use currency_err::CurrencyErr;
 pub use currency_opts::CurrencyOpts;
+pub(crate) use currency_regex::*;
 
 #[cfg(test)]
 mod currency_test;
