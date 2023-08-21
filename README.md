@@ -78,6 +78,19 @@ Currency::new_float(1.12, None)
     .collect::<Vec<f64>>();                          // [0.23, 0.23, 0.22, 0.22, 0.22]
 ```
 
+It also supports `Multiplication`, `Subtraction`, `Division`, `Addition` and `Assignment` Operators
+
+```rust
+(Currency::new_float(123.5, None) + 0.23).value();    // 123.73
+(Currency::new_float(5.0, None) - 0.5).value();  // 4.50
+(Currency::new_float(45.25, None) * 3.).value(); // 135.75
+Currency::new_float(1.12, None)
+    .distribute(5)
+    .iter()
+    .map(|x| x.value())
+    .collect::<Vec<f64>>();                          // [0.23, 0.23, 0.22, 0.22, 0.22]
+```
+
 There's even a built in formatter that will automatically place comma delimiters in the right place.
 
 ```rust

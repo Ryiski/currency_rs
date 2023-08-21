@@ -2,13 +2,12 @@ use crate::{
     allow_negative_values, convert_any_decimal_values, format_dollar,
     replace_any_non_numeric_values, CurrencyErr, CurrencyOpts,
 };
-use std::fmt::Display;
 
 #[derive(Debug, Clone)]
 pub struct Currency {
-    value: f64,
-    int_value: f64,
-    opts: CurrencyOpts,
+    pub(crate) value: f64,
+    pub(crate) int_value: f64,
+    pub(crate) opts: CurrencyOpts,
 }
 
 impl Currency {
@@ -489,7 +488,7 @@ impl Currency {
     /// Returns:
     ///
     /// The value of the rounded number.
-    fn rounding(
+    pub(crate) fn rounding(
         value: f64,
         increment: f64,
     ) -> f64 {
@@ -537,27 +536,10 @@ impl Currency {
     /// Returns:
     ///
     /// A string
-    fn round_dp_to_string(
+    pub(crate) fn round_dp_to_string(
         v: f64,
         dp: usize,
     ) -> String {
         format!("{v:.dp$}")
-    }
-}
-
-impl Display for Currency {
-    fn fmt(
-        &self,
-        f: &mut std::fmt::Formatter<'_>,
-    ) -> std::fmt::Result {
-        let precision = self.opts.precision();
-
-        let increment = self.opts.increment();
-
-        let rounded_value = Self::rounding(self.value, increment);
-
-        let currency: String = Self::round_dp_to_string(rounded_value, precision as usize);
-
-        write!(f, "{currency}")
     }
 }

@@ -8,32 +8,35 @@
 //!
 //! ```
 //! use currency_rs::{Currency, CurrencyOpts};
-//!
-//!
+//!  
 //! let item_price = 1.33;
 //! let qty = 3.;
 //! let flat_discount = 10.;
+//!
 //! let cur_opts = Some(
 //!     CurrencyOpts::new()
 //!         .set_pattern("$ #")
 //!         .set_precision(2)
 //!         .set_increment(0.001),
 //! );
+//!
 //! let mut cur = Currency::new_float(item_price, cur_opts);
-//! cur = cur.multiply(qty);
+//!
+//! cur *= qty;
 //!
 //! if cur.value() > 30. {
-//!     cur = cur.subtract(flat_discount);
+//!     cur -= flat_discount;
 //! }
-//!
+//!  
 //! let final_total = cur.format();
-//!
+//!  
 //! println!("Final Total: {}", final_total);
 //!
 //! ```
 
 mod currency;
 mod currency_err;
+mod currency_impl;
 mod currency_opts;
 mod currency_regex;
 

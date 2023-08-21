@@ -63,15 +63,6 @@ fn should_return_int_value() {
 }
 
 #[test]
-fn should_be_immutable() {
-    let c1 = Currency::new_float(1., None);
-
-    c1.clone().add(0.25);
-
-    assert_eq!(c1.value(), 1., "original value not modified");
-}
-
-#[test]
 fn should_allow_negative_strings() {
     let c1 = Currency::new_float(-12.34, None);
 
@@ -80,7 +71,9 @@ fn should_allow_negative_strings() {
 
 #[test]
 fn should_add_floating_point_value() {
-    let c1 = Currency::new_float(2.51, None).add(0.01);
+    let mut c1 = Currency::new_float(2.51, None);
+
+    c1 += 0.01;
 
     assert_eq!(c1.value(), 2.52, "value equals decimal value 2.52");
     assert_ne!(c1.value(), 2.51 + 0.01, "does not equal 2.5199999999999996");
@@ -88,7 +81,7 @@ fn should_add_floating_point_value() {
 
 #[test]
 fn should_subtract_floating_point() {
-    let c1 = Currency::new_float(2.52, None).subtract(0.01);
+    let c1 = Currency::new_float(2.52, None) - 0.01;
 
     assert_eq!(c1.value(), 2.51, "value equals decimal value 2.51");
     assert_ne!(
@@ -135,8 +128,11 @@ fn should_round_negative_values_half_up() {
 #[test]
 fn currency_multiplication() {
     let opts = Some(CurrencyOpts::new().set_precision(2).set_increment(0.01));
-    let c1 = Currency::new_float(1.23, opts.clone()).multiply(2.);
-    let c2 = Currency::new_float(0.1, opts).multiply(0.2);
+    let mut c1 = Currency::new_float(1.23, opts.clone());
+    let mut c2 = Currency::new_float(0.1, opts);
+
+    c1 *= 2.;
+    c2 *= 0.2;
 
     assert_eq!(c1.value(), 2.46, "value is 2.46");
     assert_eq!(c2.value(), 0.02, "value equals 0.02");
@@ -151,14 +147,18 @@ fn currency_multiplication() {
 fn currency_multiplication_with_precision() {
     let opts = Some(CurrencyOpts::new().set_precision(3).set_increment(0.01));
 
-    let c1 = Currency::new_float(1.369, opts).multiply(3.);
+    let mut c1 = Currency::new_float(1.369, opts);
+
+    c1 *= 3.;
 
     assert_eq!(c1.value(), 4.107, "value is 4.107");
 }
 
 #[test]
 fn currency_division() {
-    let c1 = Currency::new_float(9.87, None).divide(2.);
+    let mut c1 = Currency::new_float(9.87, None);
+
+    c1 /= 2.;
 
     assert_eq!(c1.value(), 4.94, "value is 4.94");
 }
@@ -167,7 +167,9 @@ fn currency_division() {
 fn currency_division_with_precision() {
     let opts = Some(CurrencyOpts::new().set_precision(3));
 
-    let c1 = Currency::new_float(4.107, opts).divide(3.);
+    let mut c1 = Currency::new_float(4.107, opts.clone());
+
+    c1 /= 3.;
 
     assert_eq!(c1.value(), 1.369, "value is  1.369");
 }
@@ -188,7 +190,7 @@ fn should_parse_negative_values() {
     }
 
     assert_eq!(neg.value(), -1.23, "value is -1.23");
-    assert_eq!(pos.subtract(2.01).value(), -0.78, "value is -0.78");
+    assert_eq!((pos - 2.01).value(), -0.78, "value is -0.78");
     assert_eq!(
         distribute[0].value(),
         -0.31,
@@ -224,8 +226,8 @@ fn should_use_source_formatting_for_mixed_currency_formats() {
     let c1 = Currency::new_string("1,234.56", None).unwrap();
     let c2 = Currency::new_string("'1 234,56", opts).unwrap();
 
-    assert_eq!(c1.clone().add(c2.value()).format(), "$2,469.12");
-    assert_eq!(c2.add(c1.value()).format(), "$2 469,12");
+    assert_eq!((c1.clone() + c2.value()).format(), "$2,469.12");
+    assert_eq!((c2 + c1.value()).format(), "$2 469,12");
 }
 
 #[test]
@@ -260,7 +262,9 @@ fn should_return_0_currency_with_invalid_input() {
 
 #[test]
 fn should_allow_currency() {
-    let value = Currency::new_cur(Currency::new_float(1.23, None), None).add(0.02);
+    let mut value = Currency::new_cur(Currency::new_float(1.23, None), None);
+
+    value += 0.02;
 
     assert_eq!(value.value(), 1.25, "value is not 1.25");
 }
@@ -305,20 +309,16 @@ fn should_create_non_equal_distribution_with_a_negative_penny() {
 fn should_get_dollar_value() {
     let value = Currency::new_float(1.23, None);
 
-    assert_eq!(value.clone().add(2.).dollars(), 3, "is dollar amount");
-    assert_eq!(value.clone().add(0.8).dollars(), 2, "is dollar amount");
-    assert_eq!(
-        value.subtract(3.).dollars(),
-        -1,
-        "is negative dollar amount"
-    );
+    assert_eq!((value.clone() + 2.).dollars(), 3, "is dollar amount");
+    assert_eq!((value.clone() + 0.8).dollars(), 2, "is dollar amount");
+    assert_eq!((value - 3.).dollars(), -1, "is negative dollar amount");
 }
 
 #[test]
 fn should_get_cent_value() {
     let value = Currency::new_float(1.23, None);
     assert_eq!(value.cents(), 23, "is cent amount");
-    assert_eq!(value.add(0.31).cents(), 54, "is cent amount");
+    assert_eq!((value + 0.31).cents(), 54, "is cent amount");
 }
 
 #[test]
@@ -334,10 +334,10 @@ fn should_support_different_precision_values() {
     assert_eq!(c2.value(), 1.);
     assert_eq!(c1.int_value(), 1234.);
     assert_eq!(c2.int_value(), 1.);
-    assert_eq!(c1.clone().add(4.567).value(), 5.801);
-    assert_eq!(c2.clone().add(4.567).value(), 6.);
-    assert_eq!(c1.clone().subtract(4.567).value(), -3.333);
-    assert_eq!(c2.clone().subtract(4.567).value(), -4.);
+    assert_eq!((c1.clone() + 4.567).value(), 5.801);
+    assert_eq!((c2.clone() + 4.567).value(), 6.);
+    assert_eq!((c1.clone() - 4.567).value(), -3.333);
+    assert_eq!((c2.clone() - 4.567).value(), -4.);
     assert_eq!(c1.cents(), 234);
     assert_eq!(c2.cents(), 0);
     assert_eq!(c1.format(), "$1.234");
@@ -357,8 +357,8 @@ fn should_use_source_precision_for_arithmetic_with_different_precisions() {
     let c1 = Currency::new_float(1.23, None);
     let c2 = Currency::new_float(1.239, opts);
 
-    assert_eq!(c1.clone().add(c2.value()).value(), 2.47);
-    assert_eq!(c2.add(c1.value()).value(), 2.469);
+    assert_eq!((c1.clone() + c2.value()).value(), 2.47);
+    assert_eq!((c2 + c1.value()).value(), 2.469);
 }
 
 #[test]
@@ -371,12 +371,12 @@ fn should_default_rounding_when_parsing() {
     assert_eq!(round1.value(), 1.23, "value is not rounded to nearest cent");
     assert_eq!(round2.value(), 5.68, "value is not rounded to nearest cent");
     assert_eq!(
-        multiply.multiply(0.001).value(),
+        (multiply * 0.001).value(),
         0.01,
         "multiply value is not not rounded"
     );
     assert_eq!(
-        divide.divide(0.001).value(),
+        (divide / 0.001).value(),
         10.,
         "divide value is not not rounded"
     );
@@ -384,8 +384,8 @@ fn should_default_rounding_when_parsing() {
 
 #[test]
 fn should_have_int_value_and_real_value() {
-    let value1 = Currency::new_float(2.51, None).add(0.01);
-    let value2 = Currency::new_float(2.52, None).subtract(0.01);
+    let value1 = Currency::new_float(2.51, None) + 0.01;
+    let value2 = Currency::new_float(2.52, None) - 0.01;
 
     assert_eq!(value1.value(), 2.52, "real value is not 2.52");
     assert_eq!(value1.int_value(), 252., "int value is not 252");
@@ -397,11 +397,11 @@ fn should_have_int_value_and_real_value() {
 fn should_format_value_using_defaults() {
     let opts = CurrencyOpts::new().set_precision(4);
 
-    let value1 = Currency::new_float(1.23, None);
-    let value2 = Currency::new_float(1234.56, None);
-    let value3 = Currency::new_float(1234567.89, None);
-    let value4 = Currency::new_float(1234567.8912, Some(opts.clone()));
-    let value5 = Currency::new_float(1234567., Some(opts.set_precision(0)));
+    let mut value1 = Currency::new_float(1.23, None);
+    let mut value2 = Currency::new_float(1234.56, None);
+    let mut value3 = Currency::new_float(1234567.89, None);
+    let mut value4 = Currency::new_float(1234567.8912, Some(opts.clone()));
+    let mut value5 = Currency::new_float(1234567., Some(opts.set_precision(0)));
 
     assert_eq!(value1.format(), "$1.23", "value is not \"$1.23\"");
     assert_eq!(value2.format(), "$1,234.56", "value is not \"$1,234.56\"");
@@ -416,28 +416,35 @@ fn should_format_value_using_defaults() {
         "value is not \"$1,234,567.8912\""
     );
     assert_eq!(value5.format(), "$1,234,567", "value is not \"$1,234,567\"");
+
+    value1 *= -1.;
+
+    assert_eq!(value1.format(), "-$1.23", "value is not \"-$1.23\"");
+
+    value2 *= -1.;
+
+    assert_eq!(value2.format(), "-$1,234.56", "value is not \"-$1,234.56\"");
+
+    value3 *= -1.;
+
     assert_eq!(
-        value1.multiply(-1.).format(),
-        "-$1.23",
-        "value is not \"-$1.23\""
-    );
-    assert_eq!(
-        value2.multiply(-1.).format(),
-        "-$1,234.56",
-        "value is not \"-$1,234.56\""
-    );
-    assert_eq!(
-        value3.multiply(-1.).format(),
+        value3.format(),
         "-$1,234,567.89",
         "value is not \"-$1,234,567.89\""
     );
+
+    value4 *= -1.;
+
     assert_eq!(
-        value4.multiply(-1.).format(),
+        value4.format(),
         "-$1,234,567.8912",
         "value is not \"-$1,234,567.8912\""
     );
+
+    value5 *= -1.;
+
     assert_eq!(
-        value5.multiply(-1.).format(),
+        value5.format(),
         "-$1,234,567",
         "value is not \"-$1,234,567\""
     );
@@ -701,20 +708,21 @@ fn should_round_only_the_final_value_to_nearest_increment() {
 
     let c = |v| -> Currency { Currency::new_float(v, opts) };
 
-    assert_eq!(
-        c.clone()(1.00).add(0.01).add(0.01).add(0.01).to_string(),
-        "1.05",
-        "value is not rounded to 1.05"
-    );
-    assert_eq!(
-        c(1.00)
-            .subtract(0.01)
-            .subtract(0.01)
-            .subtract(0.01)
-            .to_string(),
-        "0.95",
-        "value is not rounded to 0.95"
-    );
+    let mut c1 = c.clone()(1.00);
+
+    c1 += 0.01;
+    c1 += 0.01;
+    c1 += 0.01;
+
+    assert_eq!(c1.to_string(), "1.05", "value is not rounded to 1.05");
+
+    let mut c2 = c(1.00);
+
+    c2 -= 0.01;
+    c2 -= 0.01;
+    c2 -= 0.01;
+
+    assert_eq!(c2.to_string(), "0.95", "value is not rounded to 0.95");
 }
 
 #[test]
@@ -722,23 +730,19 @@ fn should_not_modify_internal_values_when_rounding() {
     let opts = Some(CurrencyOpts::new().set_increment(0.05));
 
     let c = |v| -> Currency { Currency::new_float(v, opts) };
-
+    let c1 = c(1.00);
     assert_eq!(
-        c.clone()(1.00).add(0.01).int_value(),
+        (c1.clone() + 0.01).int_value(),
         101.,
         "int_value is not to 101"
     );
+    assert_eq!((c1.clone() + 0.01).value(), 1.01, "value is not to 1.01");
     assert_eq!(
-        c.clone()(1.00).add(0.01).value(),
-        1.01,
-        "value is not to 1.01"
-    );
-    assert_eq!(
-        c.clone()(1.00).add(0.04).int_value(),
+        (c1.clone() + 0.04).int_value(),
         104.,
         "intValue is not to 104"
     );
-    assert_eq!(c(1.00).add(0.04).value(), 1.04, "value is not to 1.04");
+    assert_eq!((c1 + 0.04).value(), 1.04, "value is not to 1.04");
 }
 
 #[test]
@@ -904,8 +908,8 @@ fn should_handle_add_with_from_cents_option() {
     let c1 = Currency::new_float(12345., opts.clone());
     let c2 = Currency::new_float(123., opts);
 
-    assert_eq!(c1.clone().add(123.).value(), 124.68);
-    assert_eq!(c1.add(c2.int_value()).value(), 124.68);
+    assert_eq!((c1.clone() + 123.).value(), 124.68);
+    assert_eq!((c1 + c2.int_value()).value(), 124.68);
 }
 
 #[test]
@@ -915,15 +919,17 @@ fn should_handle_subtract_with_from_cents_option() {
     let c1 = Currency::new_float(12345., opts.clone());
     let c2 = Currency::new_float(12345., opts);
 
-    assert_eq!(c1.clone().subtract(123.).value(), 122.22);
-    assert_eq!(c1.subtract(c2.value()).value(), 122.22);
+    assert_eq!((c1.clone() - 123.).value(), 122.22);
+    assert_eq!((c1 - c2).value(), 122.22);
 }
 
 #[test]
 fn should_handle_multiply_with_from_cents_option() {
     let opts = Some(CurrencyOpts::new().set_from_cents(true));
 
-    let c1 = Currency::new_float(12345., opts).multiply(2.);
+    let mut c1 = Currency::new_float(12345., opts);
+
+    c1 *= 2.;
 
     assert_eq!(c1.value(), 246.90);
 }
@@ -932,7 +938,7 @@ fn should_handle_multiply_with_from_cents_option() {
 fn should_handle_divide_with_from_cents_option() {
     let opts = Some(CurrencyOpts::new().set_from_cents(true));
 
-    let c1 = Currency::new_float(12345., opts).divide(2.);
+    let c1 = Currency::new_float(12345., opts) / 2.;
 
     assert_eq!(c1.value(), 61.73);
 }
