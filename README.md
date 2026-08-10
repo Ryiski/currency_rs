@@ -211,6 +211,32 @@ jpy(1234.56).format(); // "¥1,235"
 gas(1234.56).format(); // "$1,234.560"
 ```
 
+## Benchmarks
+
+Run with `cargo bench --bench currency` (add `--features regex` for the regex-backed parser/formatter).
+
+Each benchmark iterates over 500 values (200 for e2e). Median times:
+
+| Benchmark | Default (no features) | `regex` feature | Slowdown |
+|---|---:|---:|---:|
+| `new_string` | 271.6 µs | 38.5 ms | **142×** |
+| `new_float` | 283.8 µs | 281.0 µs | 1× |
+| `format` | 218.1 µs | 646.0 µs | 3× |
+| `format_vedic` | 227.4 µs | 657.6 µs | 2.9× |
+| `add` | 350.8 µs | 356.8 µs | 1× |
+| `add_string` | 337.6 µs | 38.8 ms | **115×** |
+| `subtract` | 353.3 µs | 354.2 µs | 1× |
+| `multiply` | 1.21 ms | 1.19 ms | 1× |
+| `divide` | 315.4 µs | 307.4 µs | 1× |
+| `operator +` | 353.3 µs | 353.8 µs | 1× |
+| `operator -` | 352.1 µs | 353.9 µs | 1× |
+| `operator *` | 1.24 ms | 1.25 ms | 1× |
+| `operator /` | 312.0 µs | 308.4 µs | 1× |
+| `distribute` | 5.8 µs | 5.9 µs | 1× |
+| `e2e` (parse→add→format) | 211.4 µs | 15.5 ms | **73×** |
+
+The default (non-regex) build uses plain string iteration for grouping, filtering, and decimal conversion. The `regex` feature pulls in `fancy-regex` and `lazy_static`, which adds ~140× overhead on the parse paths (`new_string`, `add_string`) and ~3× on `format`. Use the regex feature only when you need its specific Unicode/backreference support; otherwise prefer the default build.
+
 ## License
 
 [MIT](/license)

@@ -38,12 +38,12 @@ mod currency;
 mod currency_err;
 mod currency_impl;
 mod currency_opts;
-mod currency_regex;
+mod currency_utils;
 
 pub use currency::Currency;
 pub use currency_err::CurrencyErr;
 pub use currency_opts::CurrencyOpts;
-pub(crate) use currency_regex::*;
+pub(crate) use currency_utils::*;
 
 #[cfg(test)]
 mod currency_test;

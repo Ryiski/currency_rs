@@ -12,8 +12,6 @@ impl Mul<f64> for Currency {
     }
 }
 
-/// Assign
-
 impl MulAssign<f64> for Currency {
     fn mul_assign(
         &mut self,

@@ -12,8 +12,6 @@ impl Div<f64> for Currency {
     }
 }
 
-/// Assign
-
 impl DivAssign<f64> for Currency {
     fn div_assign(
         &mut self,

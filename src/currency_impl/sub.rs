@@ -23,8 +23,6 @@ impl Sub<f64> for Currency {
     }
 }
 
-/// Assign
-
 impl SubAssign for Currency {
     fn sub_assign(
         &mut self,

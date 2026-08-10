@@ -34,8 +34,6 @@ impl Add<&str> for Currency {
     }
 }
 
-/// Assign
-
 impl AddAssign for Currency {
     fn add_assign(
         &mut self,

@@ -1,6 +1,6 @@
 [package]
 name = "currency_rs"
-version = "1.3.0"
+version = "1.3.1"
 edition = "2021"
 authors = ["Adel-ak"]
 description = "A rust library for handling currencies"
@@ -11,15 +11,18 @@ documentation = "https://docs.rs/currency_rs/latest/currency_rs"
 repository = "https://github.com/Adel-ak/currency_rs"
 keywords = ["currency", "money", "utilities", "precision", "decimal"]
 
+[features]
+default = []
+regex = ["dep:fancy-regex", "dep:lazy_static"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-fancy-regex = "0.11.0"
-lazy_static = "1.4.0"
+fancy-regex = { version = "0.11.0", optional = true }
+lazy_static = { version = "1.5.0", optional = true }
 
 [dev-dependencies]
 criterion = "0.4.0"
-rand = { version = "0.8.5", features = ["serde"] }
+rand = { version = "0.8.7", features = ["serde"] }
 
 
 [[bench]]

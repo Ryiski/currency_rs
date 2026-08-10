@@ -67,10 +67,7 @@ impl Currency {
         value: &str,
         opts: Option<CurrencyOpts>,
     ) -> Result<Self, CurrencyErr> {
-        let currency_options = match opts {
-            Some(options) => options,
-            None => CurrencyOpts::default(),
-        };
+        let currency_options = opts.unwrap_or_default();
 
         let v = Self::parse_string(value, &currency_options, true)?;
 
@@ -91,10 +88,7 @@ impl Currency {
         cur: Self,
         opts: Option<CurrencyOpts>,
     ) -> Self {
-        let currency_options = match opts {
-            Some(options) => options,
-            None => CurrencyOpts::default(),
-        };
+        let currency_options = opts.unwrap_or_default();
 
         let v = Self::parse(cur.value, &currency_options, true);
 
@@ -183,9 +177,9 @@ impl Currency {
 
         let value_allow_negative = allow_negative_values(value);
 
-        let numeric_values = replace_any_non_numeric_values(decimal.clone(), value_allow_negative);
+        let numeric_values = replace_any_non_numeric_values(&decimal, &value_allow_negative);
 
-        let value = convert_any_decimal_values(decimal, numeric_values);
+        let value = convert_any_decimal_values(&decimal, &numeric_values);
 
         match value.parse::<f64>() {
             Ok(mut parsed_val) => {
@@ -236,8 +230,8 @@ impl Currency {
 
         let dollars = format_dollar(
             self.opts.use_vedic(),
-            split_currency.first().unwrap().to_string(),
-            separator,
+            split_currency.first().unwrap(),
+            &separator,
         );
 
         let mut cents = if split_currency.len() > 1 {
@@ -286,7 +280,7 @@ impl Currency {
     }
 
     /// > It takes a number, converts it to an integer, adds it to the current integer value, and then
-    /// divides it by the precision
+    /// > divides it by the precision
     ///
     /// Arguments:
     ///
@@ -314,7 +308,7 @@ impl Currency {
     }
 
     /// > It takes a number, converts it to an integer, adds it to the current integer value, and then
-    /// divides it by the precision
+    /// > divides it by the precision
     ///
     /// Arguments:
     ///
@@ -387,7 +381,6 @@ impl Currency {
         };
 
         int_value *= number;
-
         Self::new_float(int_value / precision, Some(self.opts))
     }
 
@@ -406,7 +399,10 @@ impl Currency {
     ) -> Self {
         let mut int_value = self.int_value;
         if number > 0. {
-            int_value /= Self::parse(number, &self.opts, false);
+            let v = Self::parse(number, &self.opts, false);
+
+            int_value /= v;
+
             Self::new_float(int_value, Some(self.opts))
         } else {
             self
@@ -414,7 +410,7 @@ impl Currency {
     }
 
     /// > This function takes a Money object and a count, and returns a vector of Money objects that are
-    /// split evenly
+    /// > split evenly
     ///
     /// Arguments:
     ///

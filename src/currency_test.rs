@@ -133,7 +133,6 @@ fn currency_multiplication() {
 
     c1 *= 2.;
     c2 *= 0.2;
-
     assert_eq!(c1.value(), 2.46, "value is 2.46");
     assert_eq!(c2.value(), 0.02, "value equals 0.02");
     assert_ne!(
@@ -993,4 +992,266 @@ fn should_format_vedic_groupings() {
         "$12,34,567.8912",
         "value is not $12,34,567.8912"
     );
+}
+
+// --------------------------------------------------
+// Cross-path correctness: these tests exercise the
+// feature-gated utility functions (allow_negative_values,
+// replace_any_non_numeric_values, convert_any_decimal_values,
+// format_dollar). Run with BOTH `cargo test` and
+// `cargo test --features regex` to verify identical output.
+// --------------------------------------------------
+
+mod cross_path {
+    use crate::{Currency, CurrencyOpts};
+
+    // -- allow_negative_values path --
+
+    #[test]
+    fn parenthesized_positive() {
+        // "(123.45)" → "-123.45"
+        let c = Currency::new_string("(123.45)", None).unwrap();
+        assert_eq!(c.value(), -123.45);
+        assert_eq!(c.format(), "-$123.45");
+    }
+
+    #[test]
+    fn parenthesized_with_symbol() {
+        let c = Currency::new_string("$(1,234.56)", None).unwrap();
+        assert_eq!(c.value(), -1234.56);
+        assert_eq!(c.format(), "-$1,234.56");
+    }
+
+    #[test]
+    fn parenthesized_international() {
+        let opts = CurrencyOpts::new()
+            .set_separator(".")
+            .set_decimal(",")
+            .set_symbol("€");
+        let c = Currency::new_string("€(1.234,56)", Some(opts)).unwrap();
+        assert_eq!(c.value(), -1234.56);
+        assert_eq!(c.format(), "-€1.234,56");
+    }
+
+    #[test]
+    fn parenthesized_zero() {
+        let c = Currency::new_string("(0.00)", None).unwrap();
+        assert_eq!(c.value(), 0.00);
+        assert_eq!(c.format(), "$0.00");
+    }
+
+    // -- replace_any_non_numeric_values path --
+
+    #[test]
+    fn strip_letters_and_symbols() {
+        let c = Currency::new_string("abc$1x2y3z.45", None).unwrap();
+        assert_eq!(c.value(), 123.45);
+    }
+
+    #[test]
+    fn strip_mixed_unicode() {
+        // non-ASCII junk around a valid number
+        let c = Currency::new_string("¥€£1,234.56$", None).unwrap();
+        assert_eq!(c.value(), 1234.56);
+    }
+
+    #[test]
+    fn negative_sign_mid_string() {
+        // only leading '-' is valid; mid-string dashes produce an unparseable float
+        let c = Currency::new_string("1-2-3.45", None).unwrap();
+        assert_eq!(c.value(), 0.);
+    }
+
+    #[test]
+    fn only_negative_sign() {
+        let c = Currency::new_string("-", None).unwrap();
+        assert_eq!(c.value(), 0.);
+    }
+
+    // -- convert_any_decimal_values path --
+
+    #[test]
+    fn comma_decimal_plain() {
+        let opts = CurrencyOpts::new().set_decimal(",");
+        let c = Currency::new_string("12,34", Some(opts)).unwrap();
+        assert_eq!(c.value(), 12.34);
+    }
+
+    #[test]
+    fn comma_decimal_with_space_separator() {
+        let opts = CurrencyOpts::new()
+            .set_separator(" ")
+            .set_decimal(",")
+            .set_symbol("€");
+        let c = Currency::new_string("1 234,56", Some(opts)).unwrap();
+        assert_eq!(c.value(), 1234.56);
+        assert_eq!(c.format(), "€1 234,56");
+    }
+
+    #[test]
+    fn comma_decimal_no_separator() {
+        let opts = CurrencyOpts::new().set_separator("").set_decimal(",");
+        let c = Currency::new_string("1234,56", Some(opts)).unwrap();
+        assert_eq!(c.value(), 1234.56);
+    }
+
+    #[test]
+    fn dot_separator_comma_decimal_millions() {
+        let opts = CurrencyOpts::new().set_separator(".").set_decimal(",");
+        let c = Currency::new_string("1.234.567,89", Some(opts)).unwrap();
+        assert_eq!(c.value(), 1234567.89);
+        assert_eq!(c.format(), "$1.234.567,89");
+    }
+
+    #[test]
+    fn multiple_decimal_separators() {
+        // "1,234,56" with decimal="," → all "," → "." → "1.234.56" → parse fails → 0
+        let opts = CurrencyOpts::new().set_decimal(",");
+        let c = Currency::new_string("1,234,56", Some(opts)).unwrap();
+        assert_eq!(c.value(), 0.);
+    }
+
+    // -- format_dollar path (grouping) --
+
+    #[test]
+    fn format_no_separator() {
+        let opts = CurrencyOpts::new().set_separator("");
+        let c = Currency::new_float(1234567.89, Some(opts));
+        assert_eq!(c.format(), "$1234567.89");
+    }
+
+    #[test]
+    fn format_tiny_number() {
+        let c = Currency::new_float(0.01, None);
+        assert_eq!(c.format(), "$0.01");
+    }
+
+    #[test]
+    fn format_zero() {
+        let c = Currency::new_float(0.0, None);
+        assert_eq!(c.format(), "$0.00");
+    }
+
+    #[test]
+    fn format_negative_zero() {
+        // -0.004 rounds to -0.00; IEEE 754 -0.0 >= 0.0 is true,
+        // so the positive pattern fires. Known quirk.
+        let c = Currency::new_float(-0.004, None);
+        assert_eq!(c.format(), "$0.00");
+    }
+
+    #[test]
+    fn format_exact_million() {
+        let c = Currency::new_float(1_000_000.0, None);
+        assert_eq!(c.format(), "$1,000,000.00");
+    }
+
+    #[test]
+    fn format_exact_billion() {
+        let c = Currency::new_float(1_000_000_000.0, None);
+        assert_eq!(c.format(), "$1,000,000,000.00");
+    }
+
+    #[test]
+    fn format_precision_zero() {
+        let opts = CurrencyOpts::new().set_precision(0);
+        let c = Currency::new_float(1234.56, Some(opts));
+        assert_eq!(c.format(), "$1,235"); // rounds half-up with 0 decimals
+    }
+
+    #[test]
+    fn format_precision_four() {
+        let opts = CurrencyOpts::new().set_precision(4);
+        let c = Currency::new_float(1.2345, Some(opts));
+        assert_eq!(c.format(), "$1.2345");
+    }
+
+    // -- vedic grouping path --
+
+    #[test]
+    fn vedic_thousands() {
+        let opts = CurrencyOpts::new().set_use_vedic(true);
+        let c = Currency::new_float(1000.0, Some(opts));
+        assert_eq!(c.format(), "$1,000.00");
+    }
+
+    #[test]
+    fn vedic_lakh() {
+        let opts = CurrencyOpts::new().set_use_vedic(true);
+        let c = Currency::new_float(100_000.0, Some(opts));
+        assert_eq!(c.format(), "$1,00,000.00");
+    }
+
+    #[test]
+    fn vedic_crore() {
+        let opts = CurrencyOpts::new().set_use_vedic(true);
+        let c = Currency::new_float(10_000_000.0, Some(opts));
+        assert_eq!(c.format(), "$1,00,00,000.00");
+    }
+
+    #[test]
+    fn vedic_large() {
+        let opts = CurrencyOpts::new().set_use_vedic(true);
+        let c = Currency::new_float(12_34_56_78_901.23, Some(opts));
+        assert_eq!(c.format(), "$12,34,56,78,901.23");
+    }
+
+    #[test]
+    fn vedic_three_digits() {
+        let opts = CurrencyOpts::new().set_use_vedic(true);
+        let c = Currency::new_float(123.45, Some(opts));
+        assert_eq!(c.format(), "$123.45"); // no separator for 3 digits
+    }
+
+    #[test]
+    fn vedic_two_digits() {
+        let opts = CurrencyOpts::new().set_use_vedic(true);
+        let c = Currency::new_float(12.34, Some(opts));
+        assert_eq!(c.format(), "$12.34");
+    }
+
+    #[test]
+    fn vedic_negative() {
+        let opts = CurrencyOpts::new().set_use_vedic(true);
+        let c = Currency::new_float(-10_00_000.0, Some(opts));
+        assert_eq!(c.format(), "-$10,00,000.00");
+    }
+
+    // -- e2e: parse + arithmetic + format --
+
+    #[test]
+    fn parse_add_format_chain() {
+        let mut c = Currency::new_string("$1,234.56", None).unwrap();
+        c = c.add_string("($100.00)").unwrap(); // parenthesized negative
+        c = c.add(50.01);
+        c = c.subtract(0.01);
+        // 1234.56 + (-100.00) + 50.01 - 0.01 = 1184.56
+        assert_eq!(c.value(), 1184.56);
+        assert_eq!(c.format(), "$1,184.56");
+    }
+
+    #[test]
+    fn international_roundtrip() {
+        let opts = CurrencyOpts::new()
+            .set_separator(".")
+            .set_decimal(",")
+            .set_symbol("€");
+        let c = Currency::new_string("€1.234.567,89", Some(opts.clone()))
+            .unwrap();
+        assert_eq!(c.value(), 1234567.89);
+        assert_eq!(c.format(), "€1.234.567,89");
+        // add and re-format
+        let c2 = c.add_string("0,11").unwrap();
+        assert_eq!(c2.value(), 1234568.00);
+        assert_eq!(c2.format(), "€1.234.568,00");
+    }
+
+    #[test]
+    fn from_cents_with_formatted_string() {
+        let opts = CurrencyOpts::new().set_from_cents(true);
+        // "$1.23" as cents → stripped to "1.23" → 1 (rounded) → $0.01
+        let c = Currency::new_string("$1.23", Some(opts)).unwrap();
+        assert_eq!(c.value(), 0.01);
+        assert_eq!(c.int_value(), 1.);
+    }
 }
