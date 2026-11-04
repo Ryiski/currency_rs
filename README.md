@@ -1,145 +1,134 @@
-<div align="center" markdown="1">
-
-![currency_rs logo](https://dl.dropbox.com/s/ywaqfezvlf3n33e/logo.png?dl=1)
-
 # currency_rs
-
-</div>
 
 _currency_rs_ is library for working with currency values. it is inspired by [currency.js](https://github.com/scurker/currency.js) which was built to work around floating point issues in javascript.
 
 currency_rs works with values as integers behind the scenes, resolving some of the most basic precision problems.
 
 ```rust
-2.51 + 0.01;                                          // 2.5199999999999996
-Currency::new_float(2.51, None).add(0.01).value();      // 2.52
+2.51 + 0.01;                              // 2.5199999999999996
+(Currency::from(2.51) + 0.01).value();    // 2.52
 
-2.52 - 0.01;                                          // 2.5100000000000002
-Currency::new_float(2.52, None).subtract(0.01).value(); // 2.51
+2.52 - 0.01;                              // 2.5100000000000002
+(Currency::from(2.52) - 0.01).value();    // 2.51
 ```
 
 This should work for most _reasonable_ values of currencies. As long as your currency values are less than 2<sup>53</sup> (in cents) or 90,071,992,547,409.91 you should be okay.
 
-### Installation
+## Installation
 
-```sh
+```toml
 [dependencies]
-currency_rs = "x.y.z"
+currency_rs = "2"
 ```
 
-### Usage
+Optional feature: `serde` serializes a `Currency` as its plain number, like currency.js `toJSON`.
 
-You can create a currency object from float, strings, or the currency object itself as values.
+## Usage
+
+Create a currency from a float or a string. Strings can contain symbols, separators and parentheses for negatives.
 
 ```rust
-Currency::new_float(123., None).to_string(); // 123.00
-Currency::new_float(1.23, None).to_string(); // 1.23
-Currency::new_string("1.23", None).unwrap().to_string(); // 1.23
-Currency::new_string("$12.30", None).unwrap().to_string(); // 12.30
+use currency_rs::{Currency, CurrencyOpts};
 
-let value = Currency::new_string("123.45", None).unwrap();
-Currency::new_cur(value, None).to_string(); // 123.45
+Currency::from(123.).to_string();                     // "123.00"
+Currency::from(1.23).to_string();                     // "1.23"
+"1.23".parse::<Currency>()?.to_string();              // "1.23"
+"$12.30".parse::<Currency>()?.to_string();            // "12.30"
+"($5.24)".parse::<Currency>()?.value();               // -5.24
+```
+
+`CurrencyErr` implements `std::error::Error`, so `?` works with `Box<dyn Error>`, `anyhow` and friends.
+
+For anything other than the USD defaults, build a `CurrencyOpts` once and create values from it with `from` (numbers) or `parse` (strings):
+
+```rust
+let eur = CurrencyOpts::new().symbol("€").separator(".").decimal(",");
+
+eur.from(1234.5).format();              // "€1.234,50"
+eur.parse("2.573.693,75")?.format();    // "€2.573.693,75"
 ```
 
 Currency accepts decimal values (i.e. `1.23`) with a default precision of 2, but can accept a minor currency unit (e.g. cents in a dollar). This will respect the precision option when parsing.
 
 ```rust
-let opt = CurrencyOpts::new().set_from_cents(true);
+let cents = CurrencyOpts::new().from_cents(true);
 
-Currency::new_float(123., Some(opt.clone())).to_string(); // 1.23
-
-Currency::new_string("123", Some(opt))
-    .unwrap()
-    .to_string();                                         // 1.23
-
-let opt = CurrencyOpts::new()
-    .set_from_cents(true)
-    .set_precision(0);
-
-Currency::new_float(123., Some(opt)).to_string();         // 123
-
-let opt = CurrencyOpts::new()
-    .set_from_cents(true)
-    .set_precision(3);
-
-Currency::new_float(123., Some(opt)).to_string();         // 1.23
+cents.from(123.).to_string();                         // "1.23"
+cents.parse("123")?.to_string();                      // "1.23"
+cents.clone().precision(0).from(123.).to_string();    // "123"
+cents.clone().precision(3).from(123.).to_string();    // "0.123"
 ```
 
-There's various arithmetic methods that help take the guesswork out of trying to resolve floating point problems.
+## Arithmetic
+
+`+`, `-`, `*`, `/` and their `+=`-style forms work with `f64` and (for `+`/`-`) other currencies. Use references to avoid moving values. The result always keeps the left-hand side's options.
 
 ```rust
-Currency::new_float(123.5, None).add(0.23).value();    // 123.73
-Currency::new_float(5.0, None).subtract(0.5).value();  // 4.50
-Currency::new_float(45.25, None).multiply(3.).value(); // 135.75
-Currency::new_float(1.12, None)
-    .distribute(5)
-    .iter()
-    .map(|x| x.value())
-    .collect::<Vec<f64>>();                          // [0.23, 0.23, 0.22, 0.22, 0.22]
-```
+let price = Currency::from(123.5);
 
-It also supports `Multiplication`, `Subtraction`, `Division`, `Addition` and `Assignment` Operators
+(&price + 0.23).value();                 // 123.73
+(&price - 0.5).value();                  // 123.00
+(&price * 3.).value();                   // 370.50
+(&price / 2.).value();                   // 61.75
+(&price + &price).value();               // 247.00
 
-```rust
-(Currency::new_float(123.5, None) + 0.23).value();    // 123.73
-(Currency::new_float(5.0, None) - 0.5).value();  // 4.50
-(Currency::new_float(45.25, None) * 3.).value(); // 135.75
-Currency::new_float(1.12, None)
-    .distribute(5)
-    .iter()
-    .map(|x| x.value())
-    .collect::<Vec<f64>>();                          // [0.23, 0.23, 0.22, 0.22, 0.22]
-```
-
-There's even a built in formatter that will automatically place comma delimiters in the right place.
-
-```rust
-Currency::new_string("2,573,693.75", None)
-    .unwrap()
-    .add_string("100,275.50")
-    .unwrap()
-    .format();              // "$2,673,969.25"
-
-Currency::new_string("1,237.72", None)
-    .unwrap()
-    .subtract(300.)
-    .format();              // "$937.72"
-```
-
-You can also change the format, localizing the decimal and/or delimiter to your locale.
-
-```rust
-fn euro(value: &str) -> Currency {
-    let otp = CurrencyOpts::new()
-        .set_symbol("€")
-        .set_separator(".")
-        .set_decimal(",");
-
-    Currency::new_string(value, Some(otp)).unwrap()
+let mut total = Currency::from(1.33);
+total *= 3.;
+if total > 3. {                          // compare with f64 or Currency
+    total -= 1.;
 }
-
-euro("2.573.693,75")
-    .add_string("100.275,50")
-    .unwrap()
-    .format();                   // "€2.673.969,25"
-
-euro("1.237,72")
-.subtract(300.)
-.format();                      // "€937,72"
+total.format();                          // "$2.99"
 ```
 
-### Options
+Sum an iterator, or split an amount without losing pennies:
 
-_currency_rs_ comes with its own set of default options conforming to USD. You can customize these according to your locale.
+```rust
+let items = [Currency::from(0.1), Currency::from(0.2)];
+let sum: Currency = items.iter().sum();   // 0.30
+
+Currency::from(1.12).distribute(5);       // [0.23, 0.23, 0.22, 0.22, 0.22]
+```
+
+`dollars()` and `cents()` return the whole and fractional parts, `int_value()` the amount in minor units:
+
+```rust
+let c = Currency::from(-1.23);
+c.dollars();     // -1
+c.cents();       // -23
+c.int_value();   // -123
+```
+
+## Formatting
+
+`format()` applies the symbol, separators and patterns; `to_string()` gives the plain rounded number.
+
+```rust
+("2,573,693.75".parse::<Currency>()? + "100,275.50".parse::<Currency>()?).format(); // "$2,673,969.25"
+("1,237.72".parse::<Currency>()? - 300.).format();                                  // "$937.72"
+```
+
+Override options for a single call with `format_with`:
+
+```rust
+let c = Currency::from(1.23);
+c.format_with(|o| o.symbol("£"));    // "£1.23"
+c.format_with(|o| o.pattern("#"));   // "1.23"
+```
+
+Need fully custom output? Write a function: `c.value()`, `c.int_value()` and `c.opts()` give you everything currency.js passes to a format function.
+
+## Options
+
+_currency_rs_ comes with its own set of default options conforming to USD. Each option is a chainable setter on `CurrencyOpts` and a public field you can read (e.g. `opts.symbol`).
 
 `symbol` _default_: `$`<br/>
-Currency symbol included when calling `currency.format()`.
+Currency symbol included when calling `format()`.
 
 `separator` _default_: `,`<br/>
-Separator dividing the number groups when calling `currency.format()`.
+Separator dividing the number groups when calling `format()`.
 
 `decimal` _default_: `.`<br/>
-Decimal used when calling `currency.format()`.
+Decimal used when calling `format()`.
 
 `precision` _default_: `2`<br/>
 Number of decimal places to store as cents.
@@ -151,16 +140,13 @@ Allows you to customize the format pattern using `!` as replacement for the curr
 Allows you to customize the negative format pattern using `!` as replacement for the currency symbol and `#` as replacement for the currency amount.
 
 `error_on_invalid` _default_: `false`<br/>
-If an invalid value such as `abc` is passed in to `Currency::new_string`, will throw an error.
+If an unparsable value such as `abc` is passed to `parse`, return `Err` instead of `0`.
 
-`increment` _default_: `null`<br/>
+`increment` _default_: one minor unit<br/>
 When implementing a currency that implements rounding, setting the increment value will allow you to set the closest increment to round the display value to.
 
 ```rust
-let otp = CurrencyOpts::new()
-    .set_increment(0.05);
-
-Currency::new_float(1.48, Some(otp)).format(); // "$1.50"
+CurrencyOpts::new().increment(0.05).from(1.48).format(); // "$1.50"
 ```
 
 `use_vedic` _default_: `false`<br/>
@@ -169,73 +155,65 @@ Formats number groupings using the Indian Numbering System, i.e. `10,00,000.00`
 `from_cents` _default_: `false`<br/>
 Parse the amount value as a minor currency unit (e.g. cents in a dollar) instead of dollars.
 
-### Internationalization Examples
+## Working with multiple currencies
+
+Keep one `CurrencyOpts` per currency and create values from it:
 
 ```rust
-let otp = CurrencyOpts::new()
-    .set_separator(" ")
-    .set_decimal(",")
-    .set_symbol("€");
+let usd = CurrencyOpts::new();
+let jpy = CurrencyOpts::new().symbol("¥").precision(0);
+let gas = CurrencyOpts::new().precision(3);
 
-Currency::new_float(1234.45, Some(otp)).format(); // "€1 234,45"
+usd.from(1234.56).format(); // "$1,234.56"
+jpy.from(1234.56).format(); // "¥1,235"
+gas.from(1234.56).format(); // "$1,234.560"
 ```
 
-If you need to work with multiple currency values, the easiest way is to setup factory functions with your required currency settings.
+## Migrating from 1.x
 
-```rust
-fn usd(value: f64) -> Currency {
-    let otp = CurrencyOpts::new()
-        .set_symbol("$")
-        .set_precision(2);
+| 1.x                                                        | 2.0                                        |
+| ---------------------------------------------------------- | ------------------------------------------ |
+| `Currency::new_float(v, None)`                             | `Currency::from(v)`                        |
+| `Currency::new_float(v, Some(opts))`                       | `opts.from(v)`                             |
+| `Currency::new_string(s, None)`                            | `s.parse::<Currency>()`                    |
+| `Currency::new_string(s, Some(opts))`                      | `opts.parse(s)`                            |
+| `.set_symbol("€")` (all `set_*`)                           | `.symbol("€")`                             |
+| `opts.symbol()` (getters)                                  | `opts.symbol` (fields)                     |
+| `.add(x)` / `.subtract(x)` / `.multiply(x)` / `.divide(x)` | `+` `-` `*` `/`                            |
+| `.add_string(s)?`                                          | `c + opts.parse(s)?`                       |
+| `c.clone() + other.value()`                                | `&c + &other`                              |
+| `c.value() > 30.`                                          | `c > 30.`                                  |
+| `features = ["regex"]`                                     | removed: same output, ~100× slower parsing |
+| `int_value() -> f64`                                       | `int_value() -> i64`                       |
+| `cents() -> u64`                                           | `cents() -> i64` (keeps sign)              |
+| `distribute(i64)`                                          | `distribute(usize)`                        |
 
-    Currency::new_float(value, Some(otp))
-}
+Behaviour changes, to match currency.js:
 
-fn jpy(value: f64) -> Currency {
-    let otp = CurrencyOpts::new()
-        .set_symbol("¥")
-        .set_precision(0);
-
-    Currency::new_float(value, Some(otp))
-}
-
-fn gas(value: f64) -> Currency {
-     let otp = CurrencyOpts::new()
-        .set_precision(3);
-
-    Currency::new_float(value, Some(otp))
-}
-
-usd(1234.56).format(); // "$1,234.56"
-jpy(1234.56).format(); // "¥1,235"
-gas(1234.56).format(); // "$1,234.560"
-```
+- Negative halves round toward +∞ like JS `Math.round`: `-17.955 → -17.95` (was `-17.96`).
+- `c / -2.` divides (was a no-op for any divisor ≤ 0).
+- With `from_cents`, `a + b` between currencies adds their minor units (was off by a factor of 100).
+- `to_string()`/`format()` round exact ties like JS `toFixed` (`0.25` at precision 1 → `0.3`, was `0.2`) and never print `-0.00`.
+- Multi-character separators (e.g. `", "`, `&nbsp;`) are no longer reversed by `format()`.
 
 ## Benchmarks
 
-Run with `cargo bench --bench currency` (add `--features regex` for the regex-backed parser/formatter).
+Run with `cargo bench --bench currency`.
 
-Each benchmark iterates over 500 values (200 for e2e). Median times:
+Each benchmark iterates over 500 values (200 for e2e). Median times on an Apple M1 Pro:
 
-| Benchmark | Default (no features) | `regex` feature | Slowdown |
-|---|---:|---:|---:|
-| `new_string` | 271.6 µs | 38.5 ms | **142×** |
-| `new_float` | 283.8 µs | 281.0 µs | 1× |
-| `format` | 218.1 µs | 646.0 µs | 3× |
-| `format_vedic` | 227.4 µs | 657.6 µs | 2.9× |
-| `add` | 350.8 µs | 356.8 µs | 1× |
-| `add_string` | 337.6 µs | 38.8 ms | **115×** |
-| `subtract` | 353.3 µs | 354.2 µs | 1× |
-| `multiply` | 1.21 ms | 1.19 ms | 1× |
-| `divide` | 315.4 µs | 307.4 µs | 1× |
-| `operator +` | 353.3 µs | 353.8 µs | 1× |
-| `operator -` | 352.1 µs | 353.9 µs | 1× |
-| `operator *` | 1.24 ms | 1.25 ms | 1× |
-| `operator /` | 312.0 µs | 308.4 µs | 1× |
-| `distribute` | 5.8 µs | 5.9 µs | 1× |
-| `e2e` (parse→add→format) | 211.4 µs | 15.5 ms | **73×** |
-
-The default (non-regex) build uses plain string iteration for grouping, filtering, and decimal conversion. The `regex` feature pulls in `fancy-regex` and `lazy_static`, which adds ~140× overhead on the parse paths (`new_string`, `add_string`) and ~3× on `format`. Use the regex feature only when you need its specific Unicode/backreference support; otherwise prefer the default build.
+| Benchmark                       |     Time |
+| ------------------------------- | -------: |
+| `parse` (`"$1.23".parse()`)     | 302.2 µs |
+| `from` (`Currency::from(1.23)`) | 291.6 µs |
+| `format`                        | 184.8 µs |
+| `format_vedic`                  | 181.7 µs |
+| `operator +`                    | 310.0 µs |
+| `operator -`                    | 308.0 µs |
+| `operator *`                    |  1.95 ms |
+| `operator /`                    | 262.5 µs |
+| `distribute`                    |   3.9 µs |
+| `e2e` (parse→add→format)        | 205.6 µs |
 
 ## License
 

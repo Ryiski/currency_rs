@@ -1,1257 +1,944 @@
-use crate::Currency;
-use crate::CurrencyErr;
-use crate::CurrencyOpts;
+#![allow(
+    clippy::excessive_precision,          // JS literals, kept verbatim
+    clippy::inconsistent_digit_grouping,  // vedic groupings
+    clippy::useless_conversion            // currency(currency(x)) port
+)]
+
+// 1:1 port of currency.js test/test.js (same names and order), then Rust-only tests.
+
+use crate::{Currency, CurrencyErr, CurrencyOpts};
+
+fn c(v: f64) -> Currency {
+    Currency::from(v)
+}
+
+fn p(s: &str) -> Currency {
+    s.parse().unwrap()
+}
+
+fn values(items: &[Currency]) -> Vec<f64> {
+    items.iter().map(Currency::value).collect()
+}
+
+fn total(items: &[Currency]) -> f64 {
+    items.iter().fold(0., |acc, x| acc + x.value())
+}
+
+#[test]
+fn should_be_immutable() {
+    let value = c(1.);
+    let _new_value = &value + 0.25;
+
+    assert_eq!(value, 1., "original value not modified");
+}
+
+#[test]
+fn should_be_instance_of_currency() {
+    fn is_currency(_: &Currency) {}
+    is_currency(&c(1.));
+}
 
 #[test]
 fn should_allow_numbers() {
-    let c1 = Currency::new_float(1.23, None);
-
-    assert_eq!(c1.value(), 1.23, "value is not 1.23'");
+    assert_eq!(c(1.23).value(), 1.23);
 }
 
 #[test]
 fn should_allow_strings() {
-    let c1 = Currency::new_string("1.23", None).unwrap();
-
-    assert_eq!(c1.value(), 1.23, "currency.value() exists");
-}
-
-#[test]
-fn should_accept_strings_with_symbols() {
-    let c1 = Currency::new_string("$1234.56", None).unwrap();
-    let c2 = Currency::new_string("£78.90", None).unwrap();
-
-    assert_eq!(c1.value(), 1234.56, "value is not 1234.56");
-    assert_eq!(c2.value(), 78.90, "value is not 78.90");
-}
-
-#[test]
-fn should_allow_comma_delimited_strings() {
-    let c1 = Currency::new_string("1,234,567.89", None).unwrap();
-
-    assert_eq!(c1.value(), 1234567.89, "value is not 1234567.89");
-}
-
-#[test]
-fn should_strip_invalid_characters() {
-    let c1 = Currency::new_string("a1b2c3", None).unwrap();
-
-    assert_eq!(c1.value(), 123., "value is not 123");
-}
-
-#[test]
-fn should_default_to_0_with_invalid_strings() {
-    let c1 = Currency::new_string("abc", None).unwrap();
-
-    assert_eq!(c1.value(), 0., "value is not 0");
-}
-
-#[test]
-fn should_return_value() {
-    let c1 = Currency::new_float(1.23, None);
-
-    assert_eq!(c1.value(), 1.23, "currency.value() exists");
-}
-
-#[test]
-fn should_return_int_value() {
-    let c1 = Currency::new_float(1.23, None);
-    let c2 = Currency::new_float(1080.98, None);
-
-    assert_eq!(c1.int_value(), 123., "intValue exists");
-    assert_eq!(c2.int_value(), 108098., "intValue exists");
-}
-
-#[test]
-fn should_allow_negative_strings() {
-    let c1 = Currency::new_float(-12.34, None);
-
-    assert_eq!(c1.value(), -12.34, "value is -12.34");
-}
-
-#[test]
-fn should_add_floating_point_value() {
-    let mut c1 = Currency::new_float(2.51, None);
-
-    c1 += 0.01;
-
-    assert_eq!(c1.value(), 2.52, "value equals decimal value 2.52");
-    assert_ne!(c1.value(), 2.51 + 0.01, "does not equal 2.5199999999999996");
-}
-
-#[test]
-fn should_subtract_floating_point() {
-    let c1 = Currency::new_float(2.52, None) - 0.01;
-
-    assert_eq!(c1.value(), 2.51, "value equals decimal value 2.51");
-    assert_ne!(
-        c1.value(),
-        2.52 - 0.01,
-        "value does not equal 2.5100000000000002"
-    );
-}
-
-#[test]
-fn should_round_half_up() {
-    let c1 = Currency::new_float(17.955, None);
-    let c2 = Currency::new_float(17.855, None);
-    let c3 = Currency::new_float(17.455, None);
-    let cs1 = Currency::new_string("17.955", None).unwrap();
-    let cs2 = Currency::new_string("17.855", None).unwrap();
-    let cs3 = Currency::new_string("17.455", None).unwrap();
-
-    assert_eq!(c1.value(), 17.96, "value f64 rounds half up to 17.96");
-    assert_eq!(c2.value(), 17.86, "value f64 rounds half up to 17.86");
-    assert_eq!(c3.value(), 17.46, "value f64 rounds half up to 17.46");
-    assert_eq!(cs1.value(), 17.96, "value string rounds half up to 17.96");
-    assert_eq!(cs2.value(), 17.86, "value string rounds half up to 17.86");
-    assert_eq!(cs3.value(), 17.46, "value string rounds half up to 17.46");
-}
-
-#[test]
-fn should_round_negative_values_half_up() {
-    let c1 = Currency::new_float(-17.955, None);
-    let c2 = Currency::new_float(-17.855, None);
-    let c3 = Currency::new_float(-17.455, None);
-    let cs1 = Currency::new_string("-17.955", None).unwrap();
-    let cs2 = Currency::new_string("-17.855", None).unwrap();
-    let cs3 = Currency::new_string("-17.455", None).unwrap();
-
-    assert_eq!(c1.value(), -17.96, "value f64 rounds half up to -17.96");
-    assert_eq!(c2.value(), -17.86, "value f64 rounds half up to -17.86");
-    assert_eq!(c3.value(), -17.46, "value f64 rounds half up to -17.46");
-    assert_eq!(cs1.value(), -17.96, "value string rounds half up to -17.96");
-    assert_eq!(cs2.value(), -17.86, "value string rounds half up to -17.86");
-    assert_eq!(cs3.value(), -17.46, "value string rounds half up to -17.46");
-}
-
-#[test]
-fn currency_multiplication() {
-    let opts = Some(CurrencyOpts::new().set_precision(2).set_increment(0.01));
-    let mut c1 = Currency::new_float(1.23, opts.clone());
-    let mut c2 = Currency::new_float(0.1, opts);
-
-    c1 *= 2.;
-    c2 *= 0.2;
-    assert_eq!(c1.value(), 2.46, "value is 2.46");
-    assert_eq!(c2.value(), 0.02, "value equals 0.02");
-    assert_ne!(
-        c2.value(),
-        0.1 * 0.2,
-        "value does not equal 0.020000000000000004"
-    );
-}
-
-#[test]
-fn currency_multiplication_with_precision() {
-    let opts = Some(CurrencyOpts::new().set_precision(3).set_increment(0.01));
-
-    let mut c1 = Currency::new_float(1.369, opts);
-
-    c1 *= 3.;
-
-    assert_eq!(c1.value(), 4.107, "value is 4.107");
-}
-
-#[test]
-fn currency_division() {
-    let mut c1 = Currency::new_float(9.87, None);
-
-    c1 /= 2.;
-
-    assert_eq!(c1.value(), 4.94, "value is 4.94");
-}
-
-#[test]
-fn currency_division_with_precision() {
-    let opts = Some(CurrencyOpts::new().set_precision(3));
-
-    let mut c1 = Currency::new_float(4.107, opts.clone());
-
-    c1 /= 3.;
-
-    assert_eq!(c1.value(), 1.369, "value is  1.369");
-}
-
-#[test]
-fn should_parse_negative_values() {
-    let pos = Currency::new_float(1.23, None);
-    let neg = Currency::new_float(-1.23, None);
-    let distribute = neg.clone().distribute(4);
-
-    let mut total = 0.;
-
-    let mut i = 0;
-
-    while i < distribute.len() {
-        total += distribute[i].value();
-        i += 1;
-    }
-
-    assert_eq!(neg.value(), -1.23, "value is -1.23");
-    assert_eq!((pos - 2.01).value(), -0.78, "value is -0.78");
-    assert_eq!(
-        distribute[0].value(),
-        -0.31,
-        "value, first distributed value is not -0.31"
-    );
-    assert_eq!(total, -1.23, "value sum is -1.23");
-}
-
-#[test]
-fn should_create_equal_distribution() {
-    let values = Currency::new_float(1., None).distribute(4);
-
-    let mut real_values: Vec<f64> = vec![];
-    let mut i = 0;
-
-    while i < values.len() {
-        real_values.push(values[i].value());
-        i += 1;
-    }
-
-    assert_eq!(values.len(), 4, "values creates 4 distributed items");
-    assert_eq!(
-        real_values,
-        [0.25, 0.25, 0.25, 0.25],
-        "all distributed items are equal"
-    );
-}
-
-#[test]
-fn should_use_source_formatting_for_mixed_currency_formats() {
-    let opts = Some(CurrencyOpts::new().set_separator(" ").set_decimal(","));
-
-    let c1 = Currency::new_string("1,234.56", None).unwrap();
-    let c2 = Currency::new_string("'1 234,56", opts).unwrap();
-
-    assert_eq!((c1.clone() + c2.value()).format(), "$2,469.12");
-    assert_eq!((c2 + c1.value()).format(), "$2 469,12");
-}
-
-#[test]
-fn should_parse_international_values() {
-    let opts = Some(CurrencyOpts::new().set_separator(".").set_decimal(","));
-
-    let c = |v| Currency::new_string(v, opts.clone()).unwrap();
-
-    assert_eq!(c("1,23").value(), 1.23, "value is not 1.23");
-    assert_eq!(c("1.000,00").value(), 1000.00, "value is not 1,000.00");
-    assert_eq!(
-        c("1.000.000,00").value(),
-        1000000.00,
-        "value is not 1,000,000.00"
-    );
-}
-
-#[test]
-fn should_throw_exception_with_invalid_input() {
-    let opts = Some(CurrencyOpts::new().set_error_on_invalid(true));
-    let value_err = Currency::new_string("abc", opts).unwrap_err();
-
-    assert!(matches!(value_err, CurrencyErr::ParseErr(_)));
-}
-
-#[test]
-fn should_return_0_currency_with_invalid_input() {
-    let value = Currency::new_string("abc", None).unwrap();
-
-    assert_eq!(value.value(), 0., "value is not 0.00");
+    assert_eq!(p("1.23").value(), 1.23);
 }
 
 #[test]
 fn should_allow_currency() {
-    let mut value = Currency::new_cur(Currency::new_float(1.23, None), None);
+    assert_eq!(Currency::from(p("1.23")).value(), 1.23);
+}
 
-    value += 0.02;
+#[test]
+fn should_accept_strings_with_symbols() {
+    assert_eq!(p("$1234.56").value(), 1234.56);
+    assert_eq!(p("£78.90").value(), 78.90);
+}
 
-    assert_eq!(value.value(), 1.25, "value is not 1.25");
+#[test]
+fn should_allow_comma_delimited_strings() {
+    assert_eq!(p("1,234,567.89").value(), 1234567.89);
+}
+
+#[test]
+fn should_strip_invalid_characters() {
+    assert_eq!(p("a1b2c3").value(), 123.);
+}
+
+#[test]
+fn should_allow_negative_strings() {
+    assert_eq!(p("(5.24)").value(), -5.24);
+    assert_eq!(p("-12.34").value(), -12.34);
+}
+
+#[test]
+fn should_default_to_0_with_invalid_strings() {
+    assert_eq!(p("abc").value(), 0.);
+}
+
+#[test]
+fn should_return_value() {
+    assert_eq!(c(1.23).value(), 1.23);
+}
+
+#[test]
+fn should_return_int_value() {
+    assert_eq!(c(1.23).int_value(), 123);
+}
+
+#[test]
+fn should_add_floating_point_value() {
+    let value = c(2.51) + 0.01;
+
+    assert_eq!(value.value(), 2.52);
+    assert_ne!(value.value(), 2.51 + 0.01);
+}
+
+#[test]
+fn should_subtract_floating_point() {
+    let value = c(2.52) - 0.01;
+
+    assert_eq!(value.value(), 2.51);
+    assert_ne!(value.value(), 2.52 - 0.01);
+}
+
+#[test]
+fn should_round_half_up() {
+    assert_eq!(c(17.955).value(), 17.96);
+    assert_eq!(c(17.855).value(), 17.86);
+    assert_eq!(c(17.455).value(), 17.46);
+    assert_eq!(p("17.955").value(), 17.96);
+    assert_eq!(p("17.855").value(), 17.86);
+    assert_eq!(p("17.455").value(), 17.46);
+}
+
+#[test]
+fn should_round_negative_values_half_up() {
+    assert_eq!(c(-17.955).value(), -17.95);
+    assert_eq!(c(-17.855).value(), -17.85);
+    assert_eq!(c(-17.455).value(), -17.45);
+    assert_eq!(p("-17.955").value(), -17.95);
+    assert_eq!(p("-17.855").value(), -17.85);
+    assert_eq!(p("-17.455").value(), -17.45);
+}
+
+#[test]
+fn currency_multiplication() {
+    let value = c(1.23) * 2.;
+    let floating_value = c(0.1) * 0.2;
+
+    assert_eq!(value.value(), 2.46);
+    assert_eq!(floating_value.value(), 0.02);
+    assert_ne!(floating_value.value(), 0.1 * 0.2);
+}
+
+#[test]
+fn currency_multiplication_with_precision() {
+    let value = CurrencyOpts::new().precision(3).from(1.369) * 3.;
+    assert_eq!(value.value(), 4.107);
+}
+
+#[test]
+fn currency_division() {
+    assert_eq!((c(9.87) / 2.).value(), 4.94);
+}
+
+#[test]
+fn currency_division_with_precision() {
+    let value = CurrencyOpts::new().precision(3).from(4.107) / 3.;
+    assert_eq!(value.value(), 1.369);
+}
+
+#[test]
+fn should_parse_negative_values() {
+    let pos = c(1.23);
+    let neg = c(-1.23);
+    let distribute = neg.distribute(4);
+
+    assert_eq!(neg.value(), -1.23);
+    assert_eq!((pos - 2.01).value(), -0.78);
+    assert_eq!(distribute[0].value(), -0.31);
+    assert_eq!(total(&distribute), -1.23);
+}
+
+#[test]
+fn should_create_equal_distribution() {
+    let values_ = c(1.00).distribute(4);
+
+    assert_eq!(values_.len(), 4);
+    assert_eq!(values(&values_), [0.25, 0.25, 0.25, 0.25]);
 }
 
 #[test]
 fn should_create_non_equal_distribution_with_pennies() {
-    let values = Currency::new_float(1.01, None).distribute(4);
+    let values_ = c(1.01).distribute(4);
 
-    assert_eq!(values[0].value(), 0.26, "first value is not 0.26");
-    assert_eq!(values[1].value(), 0.25, "next value is not 0.25");
-
-    let mut total = 0.;
-    let mut i = 0;
-
-    while i < values.len() {
-        total += values[i].value();
-        i += 1;
-    }
-
-    assert_eq!(total, 1.01, "sum of values matches our original amount");
+    assert_eq!(values_[0].value(), 0.26);
+    assert_eq!(values_[1].value(), 0.25);
+    assert_eq!(total(&values_), 1.01);
 }
 
 #[test]
 fn should_create_non_equal_distribution_with_a_negative_penny() {
-    let values = Currency::new_float(-0.01, None).distribute(2);
+    let values_ = c(-0.01).distribute(2);
 
-    assert_eq!(values[0].value(), -0.01, "first value is not -0.01");
-    assert_eq!(values[1].value(), 0., "second value is not 0");
-
-    let mut total = 0.;
-    let mut i = 0;
-
-    while i < values.len() {
-        total += values[i].value();
-        i += 1;
-    }
-
-    assert_eq!(total, -0.01, "sum of values matches our original amount");
+    assert_eq!(values_[0].value(), -0.01);
+    assert_eq!(values_[1].value(), 0.);
+    assert_eq!(total(&values_), -0.01);
 }
 
 #[test]
 fn should_get_dollar_value() {
-    let value = Currency::new_float(1.23, None);
+    let value = c(1.23);
 
-    assert_eq!((value.clone() + 2.).dollars(), 3, "is dollar amount");
-    assert_eq!((value.clone() + 0.8).dollars(), 2, "is dollar amount");
-    assert_eq!((value - 3.).dollars(), -1, "is negative dollar amount");
+    assert_eq!((&value + 2.).dollars(), 3);
+    assert_eq!((&value + 0.8).dollars(), 2);
+    assert_eq!((&value - 3.).dollars(), -1);
 }
 
 #[test]
 fn should_get_cent_value() {
-    let value = Currency::new_float(1.23, None);
-    assert_eq!(value.cents(), 23, "is cent amount");
-    assert_eq!((value + 0.31).cents(), 54, "is cent amount");
+    let value = c(1.23);
+
+    assert_eq!(value.cents(), 23);
+    assert_eq!((&value + 0.31).cents(), 54);
 }
 
 #[test]
 fn should_support_different_precision_values() {
-    let opts = Some(CurrencyOpts::new().set_precision(3));
-
-    let opts2 = Some(CurrencyOpts::new().set_precision(0).set_symbol("¥"));
-
-    let c1 = Currency::new_float(1.234, opts);
-    let c2 = Currency::new_float(1.234, opts2);
+    let c1 = CurrencyOpts::new().precision(3).from(1.234);
+    let c2 = CurrencyOpts::new().symbol("¥").precision(0).from(1.234);
 
     assert_eq!(c1.value(), 1.234);
     assert_eq!(c2.value(), 1.);
-    assert_eq!(c1.int_value(), 1234.);
-    assert_eq!(c2.int_value(), 1.);
-    assert_eq!((c1.clone() + 4.567).value(), 5.801);
-    assert_eq!((c2.clone() + 4.567).value(), 6.);
-    assert_eq!((c1.clone() - 4.567).value(), -3.333);
-    assert_eq!((c2.clone() - 4.567).value(), -4.);
+    assert_eq!(c1.int_value(), 1234);
+    assert_eq!(c2.int_value(), 1);
+    assert_eq!((&c1 + 4.567).value(), 5.801);
+    assert_eq!((&c2 + 4.567).value(), 6.);
+    assert_eq!((&c1 - 4.567).value(), -3.333);
+    assert_eq!((&c2 - 4.567).value(), -4.);
     assert_eq!(c1.cents(), 234);
     assert_eq!(c2.cents(), 0);
     assert_eq!(c1.format(), "$1.234");
     assert_eq!(c2.format(), "¥1");
-
-    let c1_distribute: Vec<f64> = c1.distribute(4).iter().map(|x| x.value()).collect();
-    let c2_distribute: Vec<f64> = c2.distribute(4).iter().map(|x| x.value()).collect();
-
-    assert_eq!(c1_distribute, [0.309, 0.309, 0.308, 0.308]);
-    assert_eq!(c2_distribute, [1., 0., 0., 0.]);
+    assert_eq!(values(&c1.distribute(4)), [0.309, 0.309, 0.308, 0.308]);
+    assert_eq!(values(&c2.distribute(4)), [1., 0., 0., 0.]);
 }
 
 #[test]
 fn should_use_source_precision_for_arithmetic_with_different_precisions() {
-    let opts = Some(CurrencyOpts::new().set_precision(3));
+    let c1 = c(1.23);
+    let c2 = CurrencyOpts::new().precision(3).from(1.239);
 
-    let c1 = Currency::new_float(1.23, None);
-    let c2 = Currency::new_float(1.239, opts);
+    assert_eq!((&c1 + &c2).value(), 2.47);
+    assert_eq!((&c2 + &c1).value(), 2.469);
+}
 
-    assert_eq!((c1.clone() + c2.value()).value(), 2.47);
-    assert_eq!((c2 + c1.value()).value(), 2.469);
+#[test]
+fn should_use_source_formatting_for_mixed_currency_formats() {
+    let c1 = p("1,234.56");
+    let c2 = CurrencyOpts::new()
+        .separator(" ")
+        .decimal(",")
+        .parse("1 234,56")
+        .unwrap();
+
+    assert_eq!((&c1 + &c2).format(), "$2,469.12");
+    assert_eq!((&c2 + &c1).format(), "$2 469,12");
 }
 
 #[test]
 fn should_default_rounding_when_parsing() {
-    let round1 = Currency::new_float(1.2349, None);
-    let round2 = Currency::new_float(5.6789, None);
-    let multiply = Currency::new_float(10.00, None);
-    let divide = Currency::new_float(0.01, None);
-
-    assert_eq!(round1.value(), 1.23, "value is not rounded to nearest cent");
-    assert_eq!(round2.value(), 5.68, "value is not rounded to nearest cent");
-    assert_eq!(
-        (multiply * 0.001).value(),
-        0.01,
-        "multiply value is not not rounded"
-    );
-    assert_eq!(
-        (divide / 0.001).value(),
-        10.,
-        "divide value is not not rounded"
-    );
+    assert_eq!(c(1.2349).value(), 1.23);
+    assert_eq!(c(5.6789).value(), 5.68);
+    assert_eq!((c(10.00) * 0.001).value(), 0.01);
+    assert_eq!((c(0.01) / 0.001).value(), 10.);
 }
 
 #[test]
 fn should_have_int_value_and_real_value() {
-    let value1 = Currency::new_float(2.51, None) + 0.01;
-    let value2 = Currency::new_float(2.52, None) - 0.01;
+    let value1 = c(2.51) + 0.01;
+    let value2 = c(2.52) - 0.01;
 
-    assert_eq!(value1.value(), 2.52, "real value is not 2.52");
-    assert_eq!(value1.int_value(), 252., "int value is not 252");
-    assert_eq!(value2.value(), 2.51, "real value is not 2.51");
-    assert_eq!(value2.int_value(), 251., "int value is not 251");
+    assert_eq!(value1.value(), 2.52);
+    assert_eq!(value1.int_value(), 252);
+    assert_eq!(value2.value(), 2.51);
+    assert_eq!(value2.int_value(), 251);
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn should_stringify_json() {
+    let json = |v: Currency| serde_json::json!({ "value": v }).to_string();
+
+    assert_eq!(json(c(1.23)), r#"{"value":1.23}"#);
+    assert_eq!(json(c(2.51) + 0.01), r#"{"value":2.52}"#);
+    assert_eq!(json(c(2.52) - 0.02), r#"{"value":2.5}"#);
 }
 
 #[test]
 fn should_format_value_using_defaults() {
-    let opts = CurrencyOpts::new().set_precision(4);
+    let value1 = c(1.23);
+    let value2 = c(1234.56);
+    let value3 = c(1234567.89);
+    let value4 = CurrencyOpts::new().precision(4).from(1234567.8912);
+    let value5 = CurrencyOpts::new().precision(0).from(1234567.);
 
-    let mut value1 = Currency::new_float(1.23, None);
-    let mut value2 = Currency::new_float(1234.56, None);
-    let mut value3 = Currency::new_float(1234567.89, None);
-    let mut value4 = Currency::new_float(1234567.8912, Some(opts.clone()));
-    let mut value5 = Currency::new_float(1234567., Some(opts.set_precision(0)));
-
-    assert_eq!(value1.format(), "$1.23", "value is not \"$1.23\"");
-    assert_eq!(value2.format(), "$1,234.56", "value is not \"$1,234.56\"");
-    assert_eq!(
-        value3.format(),
-        "$1,234,567.89",
-        "value is not \"$1,234,567.89\""
-    );
-    assert_eq!(
-        value4.format(),
-        "$1,234,567.8912",
-        "value is not \"$1,234,567.8912\""
-    );
-    assert_eq!(value5.format(), "$1,234,567", "value is not \"$1,234,567\"");
-
-    value1 *= -1.;
-
-    assert_eq!(value1.format(), "-$1.23", "value is not \"-$1.23\"");
-
-    value2 *= -1.;
-
-    assert_eq!(value2.format(), "-$1,234.56", "value is not \"-$1,234.56\"");
-
-    value3 *= -1.;
-
-    assert_eq!(
-        value3.format(),
-        "-$1,234,567.89",
-        "value is not \"-$1,234,567.89\""
-    );
-
-    value4 *= -1.;
-
-    assert_eq!(
-        value4.format(),
-        "-$1,234,567.8912",
-        "value is not \"-$1,234,567.8912\""
-    );
-
-    value5 *= -1.;
-
-    assert_eq!(
-        value5.format(),
-        "-$1,234,567",
-        "value is not \"-$1,234,567\""
-    );
+    assert_eq!(value1.format(), "$1.23");
+    assert_eq!(value2.format(), "$1,234.56");
+    assert_eq!(value3.format(), "$1,234,567.89");
+    assert_eq!(value4.format(), "$1,234,567.8912");
+    assert_eq!(value5.format(), "$1,234,567");
+    assert_eq!((value1 * -1.).format(), "-$1.23");
+    assert_eq!((value2 * -1.).format(), "-$1,234.56");
+    assert_eq!((value3 * -1.).format(), "-$1,234,567.89");
+    assert_eq!((value4 * -1.).format(), "-$1,234,567.8912");
+    assert_eq!((value5 * -1.).format(), "-$1,234,567");
 }
 
 #[test]
 fn should_format_value_using_international() {
-    let opts = Some(CurrencyOpts::new().set_separator(".").set_decimal(","));
+    let opts = CurrencyOpts::new().separator(".").decimal(",");
 
-    let c = |v: f64| -> Currency { Currency::new_float(v, opts.clone()) };
+    assert_eq!(opts.from(1.23).format(), "$1,23");
+    assert_eq!(opts.from(1000.00).format(), "$1.000,00");
+    assert_eq!(opts.from(1000000.00).format(), "$1.000.000,00");
+}
 
-    assert_eq!(c(1.23).format(), "$1,23", "value is not \"$1,23\"");
-    assert_eq!(
-        c(1000.00).format(),
-        "$1.000,00",
-        "value is not \"$1.000,00\""
-    );
-    assert_eq!(
-        c(1000000.00).format(),
-        "$1.000.000,00",
-        "value is not \"$1.000.000,00\""
-    );
+#[test]
+fn should_format_vedic_groupings() {
+    let o = CurrencyOpts::new().use_vedic(true);
+    let o4 = o.clone().precision(4);
+
+    assert_eq!(o.from(1.23).format(), "$1.23");
+    assert_eq!(o.from(1000.00).format(), "$1,000.00");
+    assert_eq!(o.from(100000.00).format(), "$1,00,000.00");
+    assert_eq!(o.from(1000000.00).format(), "$10,00,000.00");
+    assert_eq!(o4.from(1234567.8912).format(), "$12,34,567.8912");
 }
 
 #[test]
 fn should_format_using_patterns() {
-    let opts = CurrencyOpts::new().set_pattern("# !");
+    let o = CurrencyOpts::new().pattern("# !");
 
-    let opts2 = Some(opts.clone().set_precision(4));
-    let opts3 = Some(opts.clone().set_precision(0));
-
-    let value1 = Currency::new_float(1.23, Some(opts.clone()));
-    let value2 = Currency::new_float(1234.56, Some(opts.clone()));
-    let value3 = Currency::new_float(1234567.89, Some(opts));
-    let value4 = Currency::new_float(1234567.8912, opts2);
-    let value5 = Currency::new_float(1234567., opts3);
-
-    assert_eq!(value1.format(), "1.23 $", "value is not \"1.23 $\"");
-    assert_eq!(value2.format(), "1,234.56 $", "value is not \"1,234.56 $\"");
+    assert_eq!(o.from(1.23).format(), "1.23 $");
+    assert_eq!(o.from(1234.56).format(), "1,234.56 $");
+    assert_eq!(o.from(1234567.89).format(), "1,234,567.89 $");
     assert_eq!(
-        value3.format(),
-        "1,234,567.89 $",
-        "value is not \"1,234,567.89 $\""
+        o.clone().precision(4).from(1234567.8912).format(),
+        "1,234,567.8912 $"
     );
     assert_eq!(
-        value4.format(),
-        "1,234,567.8912 $",
-        "value is not \"1,234,567.8912 $\""
-    );
-    assert_eq!(
-        value5.format(),
-        "1,234,567 $",
-        "value is not \"1,234,567 $\""
+        o.clone().precision(0).from(1234567.).format(),
+        "1,234,567 $"
     );
 }
 
 #[test]
 fn should_format_using_negative_patterns() {
-    let opts = Some(CurrencyOpts::new().set_negative_pattern("! (#)"));
+    let o = CurrencyOpts::new().negative_pattern("! (#)");
 
-    let opts2 = Some(
-        CurrencyOpts::new()
-            .set_precision(4)
-            .set_negative_pattern("! (#)"),
+    assert_eq!(o.from(-1.23).format(), "$ (1.23)");
+    assert_eq!(o.from(-1234.56).format(), "$ (1,234.56)");
+    assert_eq!(o.from(-1234567.89).format(), "$ (1,234,567.89)");
+    assert_eq!(
+        o.clone().precision(4).from(-1234567.8912).format(),
+        "$ (1,234,567.8912)"
     );
-    let opts3 = Some(
-        CurrencyOpts::new()
-            .set_precision(0)
-            .set_negative_pattern("! (#)"),
+    assert_eq!(
+        o.clone().precision(0).from(-1234567.).format(),
+        "$ (1,234,567)"
     );
+}
 
-    let value1 = Currency::new_float(-1.23, opts.clone());
-    let value2 = Currency::new_float(-1234.56, opts.clone());
-    let value3 = Currency::new_float(-1234567.89, opts);
-    let value4 = Currency::new_float(-1234567.8912, opts2);
-    let value5 = Currency::new_float(-1234567., opts3);
+#[test]
+fn should_parse_international_values() {
+    let o = CurrencyOpts::new().separator(".").decimal(",");
 
-    assert_eq!(value1.format(), "$ (1.23)", "value is not \"$ (1.23)\"");
-    assert_eq!(
-        value2.format(),
-        "$ (1,234.56)",
-        "value is not \"$ (1,234.56)\""
-    );
-    assert_eq!(
-        value3.format(),
-        "$ (1,234,567.89)",
-        "value is not \"$ (1,234,567.89)\""
-    );
-    assert_eq!(
-        value4.format(),
-        "$ (1,234,567.8912)",
-        "value is not \"$ (1,234,567.8912)\""
-    );
-    assert_eq!(
-        value5.format(),
-        "$ (1,234,567)",
-        "value is not \"$ (1,234,567)\""
-    );
+    assert_eq!(o.parse("1,23").unwrap().value(), 1.23);
+    assert_eq!(o.parse("1.000,00").unwrap().value(), 1000.00);
+    assert_eq!(o.parse("1.000.000,00").unwrap().value(), 1000000.00);
 }
 
 #[test]
 fn should_format_with_symbol() {
-    let opts = Some(CurrencyOpts::new().set_pattern("!#"));
-
-    let c1 = Currency::new_float(1.23, opts);
-
-    assert_eq!(c1.format(), "$1.23", "value is not \"$1.23\"");
+    assert_eq!(c(1.23).format_with(|o| o.pattern("!#")), "$1.23");
 }
 
 #[test]
 fn should_format_without_symbol() {
-    let opts = Some(CurrencyOpts::new().set_pattern("#"));
-
-    let c1 = Currency::new_float(1.23, opts);
-
-    assert_eq!(c1.format(), "1.23", "value is not \"1.23\"");
+    assert_eq!(c(1.23).format_with(|o| o.pattern("#")), "1.23");
 }
 
 #[test]
 fn should_format_with_international_symbol() {
-    let opts = CurrencyOpts::new().set_symbol("£");
+    assert_eq!(c(1.23).format_with(|o| o.symbol("£")), "£1.23");
+    assert_eq!(c(1.23).format_with(|o| o.symbol("¥")), "¥1.23");
+}
 
-    let c1 = Currency::new_float(1.23, Some(opts.clone()));
-    let c2 = Currency::new_float(1.23, Some(opts.set_symbol("¥")));
+// JS `format(fn)` has no Rust equivalent: a custom formatter is just a function
+// taking `(&Currency, &CurrencyOpts)`.
+#[test]
+fn should_use_a_function_for_formatting() {
+    let mut called = false;
+    let mut format = |_: &Currency, _: &CurrencyOpts| {
+        called = true;
+        "1.23".to_string()
+    };
 
-    assert_eq!(c1.format(), "£1.23", "value is not \"£1.23\"");
-    assert_eq!(c2.format(), "¥1.23", "value is not \"¥1.23\"");
+    let cur = c(1234.56);
+    let val = format(&cur, cur.opts());
+
+    assert!(called);
+    assert_eq!(val, "1.23");
+}
+
+#[test]
+fn should_pass_options_when_using_a_function_for_formatting() {
+    let format = |cur: &Currency, opts: &CurrencyOpts| (cur.value(), opts.symbol.clone());
+
+    let cur = CurrencyOpts::new().symbol("£").from(1234.56);
+    let (value, symbol) = format(&cur, cur.opts());
+
+    assert_eq!(value, 1234.56);
+    assert_eq!(symbol, "£");
+}
+
+#[test]
+fn should_override_defaults_options_when_formatting_with_options() {
+    let cur = CurrencyOpts::new().symbol("$").from(1.23);
+    assert_eq!(cur.format_with(|o| o.symbol("£")), "£1.23");
+}
+
+// JS passes `undefined`; the Rust equivalent is an empty string.
+#[test]
+fn should_return_0_00_currency_with_invalid_input() {
+    assert_eq!(p("").value(), 0.);
 }
 
 #[test]
 fn should_round_down_to_nearest_value_when_using_increments() {
-    let opts = Some(CurrencyOpts::new().set_increment(0.05));
+    let o = CurrencyOpts::new().increment(0.05);
 
-    let c = |v| -> Currency { Currency::new_float(v, opts.clone()) };
-
-    assert_eq!(c(1.01).to_string(), "1.00", "value is not rounded to 1.00");
-    assert_eq!(c(1.02).to_string(), "1.00", "value is not rounded to 1.00");
-    assert_eq!(c(1.06).to_string(), "1.05", "value is not rounded to 1.05");
-    assert_eq!(c(1.07).to_string(), "1.05", "value is not rounded to 1.05");
-    assert_eq!(
-        c(1000.01).to_string(),
-        "1000.00",
-        "value is not rounded to 1000.00"
-    );
-    assert_eq!(
-        c(10000.01).to_string(),
-        "10000.00",
-        "value is not rounded to 10000.00"
-    );
-    assert_eq!(
-        c(100000.01).to_string(),
-        "100000.00",
-        "value is not rounded to 100000.00"
-    );
-    assert_eq!(
-        c(1000000.01).to_string(),
-        "1000000.00",
-        "value is not rounded to 1000000.00"
-    );
+    assert_eq!(o.from(1.01).to_string(), "1.00");
+    assert_eq!(o.from(1.02).to_string(), "1.00");
+    assert_eq!(o.from(1.06).to_string(), "1.05");
+    assert_eq!(o.from(1.07).to_string(), "1.05");
+    assert_eq!(o.from(1000.01).to_string(), "1000.00");
+    assert_eq!(o.from(10000.01).to_string(), "10000.00");
+    assert_eq!(o.from(100000.01).to_string(), "100000.00");
+    assert_eq!(o.from(1000000.01).to_string(), "1000000.00");
 }
 
 #[test]
 fn should_round_up_to_nearest_value_when_using_increments() {
-    let opts = Some(CurrencyOpts::new().set_increment(0.05));
+    let o = CurrencyOpts::new().increment(0.05);
 
-    let c = |v| -> Currency { Currency::new_float(v, opts) };
-
-    assert_eq!(
-        c.clone()(1.03).to_string(),
-        "1.05",
-        "value is not rounded to 1.05"
-    );
-    assert_eq!(
-        c.clone()(1.04).to_string(),
-        "1.05",
-        "value is not rounded to 1.05"
-    );
-    assert_eq!(
-        c.clone()(1.08).to_string(),
-        "1.10",
-        "value is not rounded to 1.10"
-    );
-    assert_eq!(
-        c.clone()(1.09).to_string(),
-        "1.10",
-        "value is not rounded to 1.10"
-    );
-    assert_eq!(
-        c.clone()(1000.09).to_string(),
-        "1000.10",
-        "value is not rounded to 1000.10"
-    );
-    assert_eq!(
-        c.clone()(10000.09).to_string(),
-        "10000.10",
-        "value is not rounded to 10000.10"
-    );
-    assert_eq!(
-        c.clone()(100000.09).to_string(),
-        "100000.10",
-        "value is not rounded to 100000.10"
-    );
-    assert_eq!(
-        c(1000000.09).to_string(),
-        "1000000.10",
-        "value is not rounded to 1000000.10"
-    );
+    assert_eq!(o.from(1.03).to_string(), "1.05");
+    assert_eq!(o.from(1.04).to_string(), "1.05");
+    assert_eq!(o.from(1.08).to_string(), "1.10");
+    assert_eq!(o.from(1.09).to_string(), "1.10");
+    assert_eq!(o.from(1000.09).to_string(), "1000.10");
+    assert_eq!(o.from(10000.09).to_string(), "10000.10");
+    assert_eq!(o.from(100000.09).to_string(), "100000.10");
+    assert_eq!(o.from(1000000.09).to_string(), "1000000.10");
 }
 
 #[test]
 fn should_handle_negative_rounding_when_using_increments() {
-    let opts = Some(CurrencyOpts::new().set_increment(0.05));
+    let o = CurrencyOpts::new().increment(0.05);
 
-    let c = |v| -> Currency { Currency::new_float(v, opts) };
-
-    assert_eq!(
-        c.clone()(-1.01).to_string(),
-        "-1.00",
-        "value is not rounded to -1.00"
-    );
-    assert_eq!(
-        c.clone()(-1.02).to_string(),
-        "-1.00",
-        "value is not rounded to -1.00"
-    );
-    assert_eq!(
-        c.clone()(-1.03).to_string(),
-        "-1.05",
-        "value is not rounded to -1.05"
-    );
-    assert_eq!(
-        c.clone()(-1.04).to_string(),
-        "-1.05",
-        "value is not rounded to -1.05"
-    );
-    assert_eq!(
-        c.clone()(-1.06).to_string(),
-        "-1.05",
-        "value is not rounded to -1.05"
-    );
-    assert_eq!(
-        c.clone()(-1.07).to_string(),
-        "-1.05",
-        "value is not rounded to -1.05"
-    );
-    assert_eq!(
-        c.clone()(-1.08).to_string(),
-        "-1.10",
-        "value is not rounded to -1.10"
-    );
-    assert_eq!(
-        c(-1.09).to_string(),
-        "-1.10",
-        "value is not rounded to -1.10"
-    );
+    assert_eq!(o.from(-1.01).to_string(), "-1.00");
+    assert_eq!(o.from(-1.02).to_string(), "-1.00");
+    assert_eq!(o.from(-1.03).to_string(), "-1.05");
+    assert_eq!(o.from(-1.04).to_string(), "-1.05");
+    assert_eq!(o.from(-1.06).to_string(), "-1.05");
+    assert_eq!(o.from(-1.07).to_string(), "-1.05");
+    assert_eq!(o.from(-1.08).to_string(), "-1.10");
+    assert_eq!(o.from(-1.09).to_string(), "-1.10");
 }
 
 #[test]
 fn should_round_only_the_final_value_to_nearest_increment() {
-    let opts = Some(CurrencyOpts::new().set_increment(0.05));
+    let o = CurrencyOpts::new().increment(0.05);
 
-    let c = |v| -> Currency { Currency::new_float(v, opts) };
-
-    let mut c1 = c.clone()(1.00);
-
-    c1 += 0.01;
-    c1 += 0.01;
-    c1 += 0.01;
-
-    assert_eq!(c1.to_string(), "1.05", "value is not rounded to 1.05");
-
-    let mut c2 = c(1.00);
-
-    c2 -= 0.01;
-    c2 -= 0.01;
-    c2 -= 0.01;
-
-    assert_eq!(c2.to_string(), "0.95", "value is not rounded to 0.95");
+    assert_eq!((o.from(1.00) + 0.01 + 0.01 + 0.01).to_string(), "1.05");
+    assert_eq!((o.from(1.00) - 0.01 - 0.01 - 0.01).to_string(), "0.95");
 }
 
 #[test]
 fn should_not_modify_internal_values_when_rounding() {
-    let opts = Some(CurrencyOpts::new().set_increment(0.05));
+    let o = CurrencyOpts::new().increment(0.05);
 
-    let c = |v| -> Currency { Currency::new_float(v, opts) };
-    let c1 = c(1.00);
-    assert_eq!(
-        (c1.clone() + 0.01).int_value(),
-        101.,
-        "int_value is not to 101"
-    );
-    assert_eq!((c1.clone() + 0.01).value(), 1.01, "value is not to 1.01");
-    assert_eq!(
-        (c1.clone() + 0.04).int_value(),
-        104.,
-        "intValue is not to 104"
-    );
-    assert_eq!((c1 + 0.04).value(), 1.04, "value is not to 1.04");
+    assert_eq!((o.from(1.00) + 0.01).int_value(), 101);
+    assert_eq!((o.from(1.00) + 0.01).value(), 1.01);
+    assert_eq!((o.from(1.00) + 0.04).int_value(), 104);
+    assert_eq!((o.from(1.00) + 0.04).value(), 1.04);
 }
 
 #[test]
 fn should_allow_arbitrary_rounding_increments() {
-    let opts = Some(CurrencyOpts::new().set_symbol("").set_increment(0.1));
+    let c1 = CurrencyOpts::new().increment(0.1);
+    let c2 = CurrencyOpts::new().increment(0.25);
+    let c3 = CurrencyOpts::new().increment(5.).precision(0);
 
-    let opts2 = Some(CurrencyOpts::new().set_symbol("").set_increment(0.25));
-
-    let opts3 = Some(
-        CurrencyOpts::new()
-            .set_symbol("")
-            .set_precision(0)
-            .set_increment(5.),
-    );
-
-    let c1 = |v| -> Currency { Currency::new_float(v, opts) };
-    let c2 = |v| -> Currency { Currency::new_float(v, opts2) };
-    let c3 = |v| -> Currency { Currency::new_float(v, opts3) };
-
-    assert_eq!(
-        c1.clone()(1.06).format(),
-        "1.10",
-        "value is not rounded to 1.10"
-    );
-    assert_eq!(c1(-1.06).format(), "-1.10", "value is not rounded to -1.10");
-    assert_eq!(
-        c2.clone()(1.17).format(),
-        "1.25",
-        "value is not rounded to 1.25"
-    );
-    assert_eq!(c2(-1.17).format(), "-1.25", "value is not rounded to -1.25");
-    assert_eq!(
-        c3.clone()(117.).format(),
-        "115",
-        "value is not rounded to 120"
-    );
-    assert_eq!(c3(-117.).format(), "-115", "value is not rounded to 120");
+    assert_eq!(c1.from(1.06).to_string(), "1.10");
+    assert_eq!(c1.from(-1.06).to_string(), "-1.10");
+    assert_eq!(c2.from(1.17).to_string(), "1.25");
+    assert_eq!(c2.from(-1.17).to_string(), "-1.25");
+    assert_eq!(c3.from(117.).to_string(), "115");
+    assert_eq!(c3.from(-117.).to_string(), "-115");
 }
 
 #[test]
 fn should_handle_max_safe_integer() {
-    let max1 = Currency::new_float(i128::MAX as f64, None);
-    let max2 = Currency::new_float(-i128::MAX as f64, None);
-    let max3 = Currency::new_float(i64::MAX as f64, None);
-    let max4 = Currency::new_float(-i64::MAX as f64, None);
-    let max5 = Currency::new_float(i32::MAX as f64, None);
-    let max6 = Currency::new_float(-i32::MAX as f64, None);
+    assert_eq!(c(90071992547409.91).int_value(), 9007199254740991);
+    assert_eq!(c(-90071992547409.91).int_value(), -9007199254740991);
+}
 
-    assert_eq!(
-        max1.value(),
-        i128::MAX as f64,
-        "currency does not handle i128 correctly"
-    );
-    assert_eq!(
-        max2.value(),
-        -i128::MAX as f64,
-        "currency does not handle -i128 correctly"
-    );
-    assert_eq!(
-        max3.value(),
-        i64::MAX as f64,
-        "currency does not handle i64 correctly"
-    );
-    assert_eq!(
-        max4.value(),
-        -i64::MAX as f64,
-        "currency does not handle -i64 correctly"
-    );
-    assert_eq!(
-        max5.value(),
-        i32::MAX as f64,
-        "currency does not handle i32 correctly"
-    );
-    assert_eq!(
-        max6.value(),
-        -i32::MAX as f64,
-        "currency does not handle -i32 correctly"
-    );
+// JS passes `undefined`; the Rust equivalent is an unparsable string.
+#[test]
+fn should_throw_exception_with_invalid_input() {
+    let err = CurrencyOpts::new()
+        .error_on_invalid(true)
+        .parse("")
+        .unwrap_err();
+    assert!(matches!(err, CurrencyErr::ParseErr(_)));
 }
 
 #[test]
 fn should_allow_creation_from_cents() {
-    let opts = Some(CurrencyOpts::new().set_precision(2).set_from_cents(true));
-    let opts2 = Some(CurrencyOpts::new().set_precision(0).set_from_cents(true));
-    let opts3 = Some(CurrencyOpts::new().set_precision(3).set_from_cents(true));
+    let c1 = CurrencyOpts::new().from_cents(true).precision(2);
+    let c2 = CurrencyOpts::new().from_cents(true).precision(0);
+    let c3 = CurrencyOpts::new().from_cents(true).precision(3);
 
-    let c1 = |v| Currency::new_float(v, opts.clone());
-    let c2 = |v| Currency::new_float(v, opts2.clone());
-    let c3 = |v| Currency::new_float(v, opts3.clone());
-
-    assert_eq!(
-        c1(500.).to_string(),
-        "5.00",
-        "value is not parsed from cents to 5.00"
-    );
-    assert_eq!(
-        c1(455.).to_string(),
-        "4.55",
-        "value is not parsed from a string to cents"
-    );
-    assert_eq!(
-        c2(500.).to_string(),
-        "500",
-        "value is not parsed from cents to 5.00"
-    );
-    assert_eq!(
-        c2(455.).to_string(),
-        "455",
-        "value is not parsed from a string to cents"
-    );
-    assert_eq!(
-        c3(500.).to_string(),
-        "0.500",
-        "value is not parsed from cents to 5.00"
-    );
-    assert_eq!(
-        c3(455.).to_string(),
-        "0.455",
-        "value is not parsed from a string to cents"
-    );
+    assert_eq!(c1.from(500.).to_string(), "5.00");
+    assert_eq!(c1.parse("455").unwrap().to_string(), "4.55");
+    assert_eq!(c2.from(500.).to_string(), "500");
+    assert_eq!(c2.parse("455").unwrap().to_string(), "455");
+    assert_eq!(c3.from(500.).to_string(), "0.500");
+    assert_eq!(c3.parse("455").unwrap().to_string(), "0.455");
 }
 
 #[test]
 fn should_parse_cents_from_a_number_when_using_from_cents_option() {
-    let opts = Some(CurrencyOpts::new().set_precision(2).set_from_cents(true));
-    let opts2 = Some(CurrencyOpts::new().set_precision(0).set_from_cents(true));
-    let opts3 = Some(CurrencyOpts::new().set_precision(3).set_from_cents(true));
-
-    let c1 = Currency::new_float(123., opts);
-    let c2 = Currency::new_float(123., opts2);
-    let c3 = Currency::new_float(123., opts3);
+    let c1 = CurrencyOpts::new().from_cents(true).from(123.);
+    let c2 = CurrencyOpts::new().from_cents(true).precision(0).from(123.);
+    let c3 = CurrencyOpts::new().from_cents(true).precision(3).from(123.);
 
     assert_eq!(c1.value(), 1.23);
-    assert_eq!(c1.int_value(), 123.);
+    assert_eq!(c1.int_value(), 123);
     assert_eq!(c2.value(), 123.);
-    assert_eq!(c2.int_value(), 123.);
+    assert_eq!(c2.int_value(), 123);
     assert_eq!(c3.value(), 0.123);
-    assert_eq!(c3.int_value(), 123.);
+    assert_eq!(c3.int_value(), 123);
 }
 
 #[test]
 fn should_parse_cents_from_a_string_when_using_from_cents_option() {
-    let opts = Some(CurrencyOpts::new().set_from_cents(true));
-    let opts2 = Some(CurrencyOpts::new().set_from_cents(true).set_precision(0));
-    let opts3 = Some(CurrencyOpts::new().set_from_cents(true).set_precision(3));
-
-    let c1 = Currency::new_string("123", opts).unwrap();
-    let c2 = Currency::new_string("123", opts2).unwrap();
-    let c3 = Currency::new_string("123", opts3).unwrap();
+    let c1 = CurrencyOpts::new().from_cents(true).parse("123").unwrap();
+    let c2 = CurrencyOpts::new()
+        .from_cents(true)
+        .precision(0)
+        .parse("123")
+        .unwrap();
+    let c3 = CurrencyOpts::new()
+        .from_cents(true)
+        .precision(3)
+        .parse("123")
+        .unwrap();
 
     assert_eq!(c1.value(), 1.23);
-    assert_eq!(c1.int_value(), 123.);
+    assert_eq!(c1.int_value(), 123);
     assert_eq!(c2.value(), 123.);
-    assert_eq!(c2.int_value(), 123.);
+    assert_eq!(c2.int_value(), 123);
     assert_eq!(c3.value(), 0.123);
-    assert_eq!(c3.int_value(), 123.);
+    assert_eq!(c3.int_value(), 123);
 }
 
 #[test]
 fn should_handle_add_with_from_cents_option() {
-    let opts = Some(CurrencyOpts::new().set_from_cents(true));
+    let o = CurrencyOpts::new().from_cents(true);
+    let c1 = o.from(12345.);
+    let c2 = o.from(123.);
 
-    let c1 = Currency::new_float(12345., opts.clone());
-    let c2 = Currency::new_float(123., opts);
-
-    assert_eq!((c1.clone() + 123.).value(), 124.68);
-    assert_eq!((c1 + c2.int_value()).value(), 124.68);
+    assert_eq!((&c1 + 123.).value(), 124.68);
+    assert_eq!((&c1 + &c2).value(), 124.68);
 }
 
 #[test]
 fn should_handle_subtract_with_from_cents_option() {
-    let opts = Some(CurrencyOpts::new().set_from_cents(true));
+    let o = CurrencyOpts::new().from_cents(true);
+    let c1 = o.from(12345.);
+    let c2 = o.from(123.);
 
-    let c1 = Currency::new_float(12345., opts.clone());
-    let c2 = Currency::new_float(12345., opts);
-
-    assert_eq!((c1.clone() - 123.).value(), 122.22);
-    assert_eq!((c1 - c2).value(), 122.22);
+    assert_eq!((&c1 - 123.).value(), 122.22);
+    assert_eq!((&c1 - &c2).value(), 122.22);
 }
 
 #[test]
 fn should_handle_multiply_with_from_cents_option() {
-    let opts = Some(CurrencyOpts::new().set_from_cents(true));
-
-    let mut c1 = Currency::new_float(12345., opts);
-
-    c1 *= 2.;
-
-    assert_eq!(c1.value(), 246.90);
+    let c1 = CurrencyOpts::new().from_cents(true).from(12345.);
+    assert_eq!((c1 * 2.).value(), 246.90);
 }
 
 #[test]
 fn should_handle_divide_with_from_cents_option() {
-    let opts = Some(CurrencyOpts::new().set_from_cents(true));
-
-    let c1 = Currency::new_float(12345., opts) / 2.;
-
-    assert_eq!(c1.value(), 61.73);
+    let c1 = CurrencyOpts::new().from_cents(true).from(12345.);
+    assert_eq!((c1 / 2.).value(), 61.73);
 }
 
 #[test]
 fn should_handle_distribute_with_from_cents_option() {
-    let opts = Some(CurrencyOpts::new().set_from_cents(true));
-
-    let distributions = Currency::new_float(100., opts).distribute(4);
-    let values: Vec<f64> = distributions.iter().map(|c| c.value()).collect();
-
-    assert_eq!(values, [0.25, 0.25, 0.25, 0.25]);
+    let parts = CurrencyOpts::new()
+        .from_cents(true)
+        .from(100.)
+        .distribute(4);
+    assert_eq!(values(&parts), [0.25, 0.25, 0.25, 0.25]);
 }
 
 #[test]
 fn should_handle_fractional_cents() {
-    let opts = Some(CurrencyOpts::new().set_from_cents(true));
+    let v = CurrencyOpts::new().from_cents(true).from(1234.56);
 
-    let c = Currency::new_float(1234.56, opts);
-
-    assert_eq!(c.int_value(), 1235.);
-    assert_eq!(c.value(), 12.35);
+    assert_eq!(v.int_value(), 1235);
+    assert_eq!(v.value(), 12.35);
 }
 
-#[test]
-fn should_format_vedic_groupings() {
-    let opts = Some(CurrencyOpts::new().set_use_vedic(true));
+mod regressions {
+    use super::*;
 
-    let opts2 = Some(CurrencyOpts::new().set_precision(4).set_use_vedic(true));
+    #[test]
+    fn cents_keeps_sign() {
+        assert_eq!(c(-1.23).cents(), -23);
+        assert_eq!(c(-1.23).dollars(), -1);
+    }
 
-    let c1 = |v| Currency::new_float(v, opts);
-    let c2 = |v| Currency::new_float(v, opts2);
+    #[test]
+    fn divide_by_negative() {
+        assert_eq!((c(10.) / -2.).value(), -5.);
+    }
 
-    assert_eq!(c1.clone()(1.23).format(), "$1.23", "value is not $1.23");
-    assert_eq!(
-        c1.clone()(1000.00).format(),
-        "$1,000.00",
-        "value is not $1,000"
-    );
-    assert_eq!(
-        c1.clone()(100000.00).format(),
-        "$1,00,000.00",
-        "value is not $1,00,000,00"
-    );
-    assert_eq!(
-        c1(1000000.00).format(),
-        "$10,00,000.00",
-        "value is not $10,00,000,00"
-    );
-    assert_eq!(
-        c2(1234567.8912).format(),
-        "$12,34,567.8912",
-        "value is not $12,34,567.8912"
-    );
+    #[test]
+    fn multi_char_separator_not_reversed() {
+        let v = CurrencyOpts::new().separator(", ").from(1234567.);
+        assert_eq!(v.format(), "$1, 234, 567.00");
+    }
+
+    #[test]
+    fn negative_zero_prints_as_zero() {
+        assert_eq!(p("-0").to_string(), "0.00");
+        assert_eq!(p("(0.00)").to_string(), "0.00");
+    }
+
+    #[test]
+    fn display_ties_round_like_js_to_fixed() {
+        let o = CurrencyOpts::new().precision(1).increment(0.25);
+        assert_eq!(o.from(0.2).to_string(), "0.3");
+        assert_eq!(o.from(-0.2).to_string(), "-0.3");
+    }
+
+    #[test]
+    fn distribute_zero_is_empty() {
+        assert!(c(1.).distribute(0).is_empty());
+    }
+
+    #[test]
+    fn from_cents_assign_currency() {
+        let o = CurrencyOpts::new().from_cents(true);
+        let mut a = o.from(100.);
+        a += o.from(50.);
+        assert_eq!(a, 1.50);
+        a -= &o.from(25.);
+        assert_eq!(a, 1.25);
+    }
 }
 
-// --------------------------------------------------
-// Cross-path correctness: these tests exercise the
-// feature-gated utility functions (allow_negative_values,
-// replace_any_non_numeric_values, convert_any_decimal_values,
-// format_dollar). Run with BOTH `cargo test` and
-// `cargo test --features regex` to verify identical output.
-// --------------------------------------------------
+mod dx {
+    use super::*;
 
-mod cross_path {
-    use crate::{Currency, CurrencyOpts};
+    #[test]
+    fn compare_with_f64_and_currency() {
+        let a = c(30.01);
+        assert!(a > 30.);
+        assert!(a < c(30.02));
+        assert_eq!(c(1.23), CurrencyOpts::new().precision(3).from(1.23));
+    }
 
-    // -- allow_negative_values path --
+    #[test]
+    fn sum_owned_and_borrowed() {
+        let items = vec![c(0.1), c(0.2), c(0.3)];
+        let by_ref: Currency = items.iter().sum();
+        let owned: Currency = items.into_iter().sum();
+
+        assert_eq!(by_ref, 0.6);
+        assert_eq!(owned, 0.6);
+        assert_eq!(std::iter::empty::<Currency>().sum::<Currency>(), 0.);
+    }
+
+    #[test]
+    fn sum_keeps_first_items_options() {
+        let eur = CurrencyOpts::new().symbol("€");
+        let sum: Currency = [eur.from(1.), c(2.)].iter().sum();
+        assert_eq!(sum.format(), "€3.00");
+    }
+
+    #[test]
+    fn ref_ops_do_not_consume() {
+        let a = c(1.);
+        let b = c(2.);
+        let _ = &a + &b;
+        let _ = &a - 1.;
+        let _ = &a * 2.;
+        let _ = &a / 2.;
+        assert_eq!(a + b, 3.);
+    }
+
+    #[test]
+    fn parse_entry_points() {
+        assert_eq!("1.23".parse::<Currency>().unwrap(), 1.23);
+        assert_eq!(Currency::try_from("1.23").unwrap(), 1.23);
+    }
+
+    #[test]
+    fn error_works_with_question_mark() -> Result<(), Box<dyn std::error::Error>> {
+        let strict = CurrencyOpts::new().error_on_invalid(true);
+        assert_eq!(strict.parse("1.23")?, 1.23);
+
+        let err = strict.parse("nope").unwrap_err();
+        assert!(err.to_string().starts_with("invalid currency value"));
+        Ok(())
+    }
+
+    #[test]
+    fn format_with_does_not_change_value() {
+        let a = c(1.23);
+        let _ = a.format_with(|o| o.symbol("£"));
+        assert_eq!(a.format(), "$1.23");
+    }
+
+    #[test]
+    fn opts_fields_are_readable() {
+        let o = CurrencyOpts::new().precision(3);
+        assert_eq!(o.precision, 3);
+        assert_eq!(o.from(1.).opts().precision, 3);
+    }
+
+    #[test]
+    fn handles_huge_values() {
+        for v in [i128::MAX as f64, i64::MAX as f64, i32::MAX as f64] {
+            assert_eq!(c(v).value(), v);
+            assert_eq!(c(-v).value(), -v);
+        }
+    }
+}
+
+mod parse_and_format {
+    use super::*;
 
     #[test]
     fn parenthesized_positive() {
-        // "(123.45)" → "-123.45"
-        let c = Currency::new_string("(123.45)", None).unwrap();
-        assert_eq!(c.value(), -123.45);
-        assert_eq!(c.format(), "-$123.45");
+        let v = p("(123.45)");
+        assert_eq!(v.value(), -123.45);
+        assert_eq!(v.format(), "-$123.45");
     }
 
     #[test]
     fn parenthesized_with_symbol() {
-        let c = Currency::new_string("$(1,234.56)", None).unwrap();
-        assert_eq!(c.value(), -1234.56);
-        assert_eq!(c.format(), "-$1,234.56");
+        let v = p("$(1,234.56)");
+        assert_eq!(v.value(), -1234.56);
+        assert_eq!(v.format(), "-$1,234.56");
     }
 
     #[test]
     fn parenthesized_international() {
-        let opts = CurrencyOpts::new()
-            .set_separator(".")
-            .set_decimal(",")
-            .set_symbol("€");
-        let c = Currency::new_string("€(1.234,56)", Some(opts)).unwrap();
-        assert_eq!(c.value(), -1234.56);
-        assert_eq!(c.format(), "-€1.234,56");
+        let o = CurrencyOpts::new().separator(".").decimal(",").symbol("€");
+        let v = o.parse("€(1.234,56)").unwrap();
+        assert_eq!(v.value(), -1234.56);
+        assert_eq!(v.format(), "-€1.234,56");
     }
 
     #[test]
     fn parenthesized_zero() {
-        let c = Currency::new_string("(0.00)", None).unwrap();
-        assert_eq!(c.value(), 0.00);
-        assert_eq!(c.format(), "$0.00");
+        let v = p("(0.00)");
+        assert_eq!(v.value(), 0.00);
+        assert_eq!(v.format(), "$0.00");
     }
-
-    // -- replace_any_non_numeric_values path --
 
     #[test]
     fn strip_letters_and_symbols() {
-        let c = Currency::new_string("abc$1x2y3z.45", None).unwrap();
-        assert_eq!(c.value(), 123.45);
+        assert_eq!(p("abc$1x2y3z.45").value(), 123.45);
     }
 
     #[test]
     fn strip_mixed_unicode() {
-        // non-ASCII junk around a valid number
-        let c = Currency::new_string("¥€£1,234.56$", None).unwrap();
-        assert_eq!(c.value(), 1234.56);
+        assert_eq!(p("¥€£1,234.56$").value(), 1234.56);
     }
 
     #[test]
     fn negative_sign_mid_string() {
         // only leading '-' is valid; mid-string dashes produce an unparseable float
-        let c = Currency::new_string("1-2-3.45", None).unwrap();
-        assert_eq!(c.value(), 0.);
+        assert_eq!(p("1-2-3.45").value(), 0.);
     }
 
     #[test]
     fn only_negative_sign() {
-        let c = Currency::new_string("-", None).unwrap();
-        assert_eq!(c.value(), 0.);
+        assert_eq!(p("-").value(), 0.);
     }
-
-    // -- convert_any_decimal_values path --
 
     #[test]
     fn comma_decimal_plain() {
-        let opts = CurrencyOpts::new().set_decimal(",");
-        let c = Currency::new_string("12,34", Some(opts)).unwrap();
-        assert_eq!(c.value(), 12.34);
+        let v = CurrencyOpts::new().decimal(",").parse("12,34").unwrap();
+        assert_eq!(v.value(), 12.34);
     }
 
     #[test]
     fn comma_decimal_with_space_separator() {
-        let opts = CurrencyOpts::new()
-            .set_separator(" ")
-            .set_decimal(",")
-            .set_symbol("€");
-        let c = Currency::new_string("1 234,56", Some(opts)).unwrap();
-        assert_eq!(c.value(), 1234.56);
-        assert_eq!(c.format(), "€1 234,56");
+        let o = CurrencyOpts::new().separator(" ").decimal(",").symbol("€");
+        let v = o.parse("1 234,56").unwrap();
+        assert_eq!(v.value(), 1234.56);
+        assert_eq!(v.format(), "€1 234,56");
     }
 
     #[test]
     fn comma_decimal_no_separator() {
-        let opts = CurrencyOpts::new().set_separator("").set_decimal(",");
-        let c = Currency::new_string("1234,56", Some(opts)).unwrap();
-        assert_eq!(c.value(), 1234.56);
+        let v = CurrencyOpts::new()
+            .separator("")
+            .decimal(",")
+            .parse("1234,56")
+            .unwrap();
+        assert_eq!(v.value(), 1234.56);
     }
 
     #[test]
     fn dot_separator_comma_decimal_millions() {
-        let opts = CurrencyOpts::new().set_separator(".").set_decimal(",");
-        let c = Currency::new_string("1.234.567,89", Some(opts)).unwrap();
-        assert_eq!(c.value(), 1234567.89);
-        assert_eq!(c.format(), "$1.234.567,89");
+        let o = CurrencyOpts::new().separator(".").decimal(",");
+        let v = o.parse("1.234.567,89").unwrap();
+        assert_eq!(v.value(), 1234567.89);
+        assert_eq!(v.format(), "$1.234.567,89");
     }
 
     #[test]
     fn multiple_decimal_separators() {
         // "1,234,56" with decimal="," → all "," → "." → "1.234.56" → parse fails → 0
-        let opts = CurrencyOpts::new().set_decimal(",");
-        let c = Currency::new_string("1,234,56", Some(opts)).unwrap();
-        assert_eq!(c.value(), 0.);
+        let v = CurrencyOpts::new().decimal(",").parse("1,234,56").unwrap();
+        assert_eq!(v.value(), 0.);
     }
-
-    // -- format_dollar path (grouping) --
 
     #[test]
     fn format_no_separator() {
-        let opts = CurrencyOpts::new().set_separator("");
-        let c = Currency::new_float(1234567.89, Some(opts));
-        assert_eq!(c.format(), "$1234567.89");
+        let v = CurrencyOpts::new().separator("").from(1234567.89);
+        assert_eq!(v.format(), "$1234567.89");
     }
 
     #[test]
     fn format_tiny_number() {
-        let c = Currency::new_float(0.01, None);
-        assert_eq!(c.format(), "$0.01");
+        assert_eq!(c(0.01).format(), "$0.01");
     }
 
     #[test]
     fn format_zero() {
-        let c = Currency::new_float(0.0, None);
-        assert_eq!(c.format(), "$0.00");
+        assert_eq!(c(0.0).format(), "$0.00");
     }
 
     #[test]
     fn format_negative_zero() {
-        // -0.004 rounds to -0.00; IEEE 754 -0.0 >= 0.0 is true,
-        // so the positive pattern fires. Known quirk.
-        let c = Currency::new_float(-0.004, None);
-        assert_eq!(c.format(), "$0.00");
+        // -0.004 rounds to 0, so the positive pattern fires.
+        assert_eq!(c(-0.004).format(), "$0.00");
     }
 
     #[test]
     fn format_exact_million() {
-        let c = Currency::new_float(1_000_000.0, None);
-        assert_eq!(c.format(), "$1,000,000.00");
+        assert_eq!(c(1_000_000.0).format(), "$1,000,000.00");
     }
 
     #[test]
     fn format_exact_billion() {
-        let c = Currency::new_float(1_000_000_000.0, None);
-        assert_eq!(c.format(), "$1,000,000,000.00");
+        assert_eq!(c(1_000_000_000.0).format(), "$1,000,000,000.00");
     }
 
     #[test]
     fn format_precision_zero() {
-        let opts = CurrencyOpts::new().set_precision(0);
-        let c = Currency::new_float(1234.56, Some(opts));
-        assert_eq!(c.format(), "$1,235"); // rounds half-up with 0 decimals
+        let v = CurrencyOpts::new().precision(0).from(1234.56);
+        assert_eq!(v.format(), "$1,235");
     }
 
     #[test]
     fn format_precision_four() {
-        let opts = CurrencyOpts::new().set_precision(4);
-        let c = Currency::new_float(1.2345, Some(opts));
-        assert_eq!(c.format(), "$1.2345");
+        let v = CurrencyOpts::new().precision(4).from(1.2345);
+        assert_eq!(v.format(), "$1.2345");
     }
 
-    // -- vedic grouping path --
+    fn vedic(v: f64) -> String {
+        CurrencyOpts::new().use_vedic(true).from(v).format()
+    }
 
     #[test]
     fn vedic_thousands() {
-        let opts = CurrencyOpts::new().set_use_vedic(true);
-        let c = Currency::new_float(1000.0, Some(opts));
-        assert_eq!(c.format(), "$1,000.00");
+        assert_eq!(vedic(1000.0), "$1,000.00");
     }
 
     #[test]
     fn vedic_lakh() {
-        let opts = CurrencyOpts::new().set_use_vedic(true);
-        let c = Currency::new_float(100_000.0, Some(opts));
-        assert_eq!(c.format(), "$1,00,000.00");
+        assert_eq!(vedic(100_000.0), "$1,00,000.00");
     }
 
     #[test]
     fn vedic_crore() {
-        let opts = CurrencyOpts::new().set_use_vedic(true);
-        let c = Currency::new_float(10_000_000.0, Some(opts));
-        assert_eq!(c.format(), "$1,00,00,000.00");
+        assert_eq!(vedic(10_000_000.0), "$1,00,00,000.00");
     }
 
     #[test]
     fn vedic_large() {
-        let opts = CurrencyOpts::new().set_use_vedic(true);
-        let c = Currency::new_float(12_34_56_78_901.23, Some(opts));
-        assert_eq!(c.format(), "$12,34,56,78,901.23");
+        assert_eq!(vedic(12_34_56_78_901.23), "$12,34,56,78,901.23");
     }
 
     #[test]
     fn vedic_three_digits() {
-        let opts = CurrencyOpts::new().set_use_vedic(true);
-        let c = Currency::new_float(123.45, Some(opts));
-        assert_eq!(c.format(), "$123.45"); // no separator for 3 digits
+        assert_eq!(vedic(123.45), "$123.45");
     }
 
     #[test]
     fn vedic_two_digits() {
-        let opts = CurrencyOpts::new().set_use_vedic(true);
-        let c = Currency::new_float(12.34, Some(opts));
-        assert_eq!(c.format(), "$12.34");
+        assert_eq!(vedic(12.34), "$12.34");
     }
 
     #[test]
     fn vedic_negative() {
-        let opts = CurrencyOpts::new().set_use_vedic(true);
-        let c = Currency::new_float(-10_00_000.0, Some(opts));
-        assert_eq!(c.format(), "-$10,00,000.00");
+        assert_eq!(vedic(-10_00_000.0), "-$10,00,000.00");
     }
-
-    // -- e2e: parse + arithmetic + format --
 
     #[test]
     fn parse_add_format_chain() {
-        let mut c = Currency::new_string("$1,234.56", None).unwrap();
-        c = c.add_string("($100.00)").unwrap(); // parenthesized negative
-        c = c.add(50.01);
-        c = c.subtract(0.01);
-        // 1234.56 + (-100.00) + 50.01 - 0.01 = 1184.56
-        assert_eq!(c.value(), 1184.56);
-        assert_eq!(c.format(), "$1,184.56");
+        let mut v = p("$1,234.56");
+        v += p("($100.00)");
+        v += 50.01;
+        v -= 0.01;
+        assert_eq!(v.value(), 1184.56);
+        assert_eq!(v.format(), "$1,184.56");
     }
 
     #[test]
     fn international_roundtrip() {
-        let opts = CurrencyOpts::new()
-            .set_separator(".")
-            .set_decimal(",")
-            .set_symbol("€");
-        let c = Currency::new_string("€1.234.567,89", Some(opts.clone()))
-            .unwrap();
-        assert_eq!(c.value(), 1234567.89);
-        assert_eq!(c.format(), "€1.234.567,89");
-        // add and re-format
-        let c2 = c.add_string("0,11").unwrap();
-        assert_eq!(c2.value(), 1234568.00);
-        assert_eq!(c2.format(), "€1.234.568,00");
+        let o = CurrencyOpts::new().separator(".").decimal(",").symbol("€");
+        let v = o.parse("€1.234.567,89").unwrap();
+        assert_eq!(v.value(), 1234567.89);
+        assert_eq!(v.format(), "€1.234.567,89");
+
+        let v2 = &v + &o.parse("0,11").unwrap();
+        assert_eq!(v2.value(), 1234568.00);
+        assert_eq!(v2.format(), "€1.234.568,00");
     }
 
     #[test]
     fn from_cents_with_formatted_string() {
-        let opts = CurrencyOpts::new().set_from_cents(true);
         // "$1.23" as cents → stripped to "1.23" → 1 (rounded) → $0.01
-        let c = Currency::new_string("$1.23", Some(opts)).unwrap();
-        assert_eq!(c.value(), 0.01);
-        assert_eq!(c.int_value(), 1.);
+        let v = CurrencyOpts::new().from_cents(true).parse("$1.23").unwrap();
+        assert_eq!(v.value(), 0.01);
+        assert_eq!(v.int_value(), 1);
     }
 }

@@ -1,44 +1,38 @@
 //! # A library for handling currencies
 //!
-//! When working with currencies, decimals only need to be precise up to the smallest cent value while avoiding
-//! common floating point errors when performing basic arithmetic. currency_rs resolves this issue by working with
-//! `vodo` behind the scenes, so you don't have to be concerned about decimal precision.
-//!
-//! ## Quick startup
+//! A Rust port of [currency.js](https://github.com/scurker/currency.js). Amounts are stored as
+//! integers of minor units (e.g. cents), so `2.51 + 0.01` is `2.52`, not `2.5199999999999996`.
 //!
 //! ```
 //! use currency_rs::{Currency, CurrencyOpts};
-//!  
-//! let item_price = 1.33;
-//! let qty = 3.;
-//! let flat_discount = 10.;
 //!
-//! let cur_opts = Some(
-//!     CurrencyOpts::new()
-//!         .set_pattern("$ #")
-//!         .set_precision(2)
-//!         .set_increment(0.001),
-//! );
-//!
-//! let mut cur = Currency::new_float(item_price, cur_opts);
-//!
-//! cur *= qty;
-//!
-//! if cur.value() > 30. {
-//!     cur -= flat_discount;
+//! # fn main() -> Result<(), currency_rs::CurrencyErr> {
+//! let mut total = Currency::from(1.33);
+//! total *= 3.;
+//! if total > 3. {
+//!     total -= 1.;
 //! }
-//!  
-//! let final_total = cur.format();
-//!  
-//! println!("Final Total: {}", final_total);
+//! assert_eq!(total.format(), "$2.99");
 //!
+//! // Custom options: build once, create values from them.
+//! let eur = CurrencyOpts::new().symbol("€").separator(".").decimal(",");
+//! let price = eur.parse("1.234,56")?;
+//! assert_eq!((&price + &price).format(), "€2.469,12");
+//!
+//! // Sum, compare, split.
+//! let items = [Currency::from(0.1), Currency::from(0.2)];
+//! let sum: Currency = items.iter().sum();
+//! assert_eq!(sum, 0.3);
+//! assert_eq!(Currency::from(1.01).distribute(4), [0.26, 0.25, 0.25, 0.25]);
+//! # Ok(())
+//! # }
 //! ```
 
 mod currency;
 mod currency_err;
-mod currency_impl;
 mod currency_opts;
 mod currency_utils;
+mod traits;
 
 pub use currency::Currency;
 pub use currency_err::CurrencyErr;
